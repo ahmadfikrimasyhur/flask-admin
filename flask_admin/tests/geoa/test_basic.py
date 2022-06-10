@@ -89,12 +89,12 @@ def test_model():
 
     html = rv.data.decode('utf-8')
     pattern = r'(.|\n)+({.*"type": ?"Point".*})</textarea>(.|\n)+'
-    group = re.match(pattern, html).group(2)
+    group = re.match(pattern, html)[2]
     p = json.loads(group)
     assert p['coordinates'][0] == 125.8
     assert p['coordinates'][1] == 10.0
 
-    url = '/admin/geomodel/edit/?id=%s' % model.id
+    url = f'/admin/geomodel/edit/?id={model.id}'
     rv = client.get(url)
     assert rv.status_code == 200
     data = rv.data.decode('utf-8')
@@ -121,7 +121,7 @@ def test_model():
     # assert list(to_shape(model.multi).geoms[0].coords) == [(100.0, 0.0])
     # assert list(to_shape(model.multi).geoms[1].coords) == [(101.0, 1.0])
 
-    url = '/admin/geomodel/delete/?id=%s' % model.id
+    url = f'/admin/geomodel/delete/?id={model.id}'
     rv = client.post(url)
     assert rv.status_code == 302
     assert db.session.query(GeoModel).count() == 0
@@ -147,7 +147,7 @@ def test_none():
 
     model = db.session.query(GeoModel).first()
 
-    url = '/admin/geomodel/edit/?id=%s' % model.id
+    url = f'/admin/geomodel/edit/?id={model.id}'
     rv = client.get(url)
     assert rv.status_code == 200
     data = rv.data.decode('utf-8')

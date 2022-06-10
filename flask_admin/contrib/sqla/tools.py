@@ -19,13 +19,11 @@ from flask_admin.tools import iterencode, iterdecode, escape  # noqa: F401
 
 def parse_like_term(term):
     if term.startswith('^'):
-        stmt = '%s%%' % term[1:]
+        return '%s%%' % term[1:]
     elif term.startswith('='):
-        stmt = term[1:]
+        return term[1:]
     else:
-        stmt = '%%%s%%' % term
-
-    return stmt
+        return '%%%s%%' % term
 
 
 def filter_foreign_columns(base_table, columns):
@@ -82,14 +80,9 @@ def tuple_operator_in(model_pk, ids):
     """
     ands = []
     for id in ids:
-        k = []
-        for i in range(len(model_pk)):
-            k.append(eq(model_pk[i], id[i]))
+        k = [eq(model_pk[i], id[i]) for i in range(len(model_pk))]
         ands.append(and_(*k))
-    if len(ands) >= 1:
-        return or_(*ands)
-    else:
-        return None
+    return or_(*ands) if ands else None
 
 
 def get_query_for_ids(modelquery, model, ids):
@@ -125,7 +118,7 @@ def get_columns_for_field(field):
             not hasattr(field, 'property') or
             not hasattr(field.property, 'columns') or
             not field.property.columns):
-        raise Exception('Invalid field %s: does not contains any columns.' % field)
+        raise Exception(f'Invalid field {field}: does not contains any columns.')
 
     return field.property.columns
 
@@ -177,7 +170,7 @@ def get_field_with_path(model, name, return_remote_proxy_attr=True):
             columns = get_columns_for_field(attr)
 
             if len(columns) > 1:
-                raise Exception('Can only handle one column for %s' % name)
+                raise Exception(f'Can only handle one column for {name}')
 
             column = columns[0]
 
@@ -190,32 +183,31 @@ def get_field_with_path(model, name, return_remote_proxy_attr=True):
 
 # copied from sqlalchemy-utils
 def get_hybrid_properties(model):
-    return dict(
-        (key, prop)
+    return {
+        key: prop
         for key, prop in inspect(model).all_orm_descriptors.items()
         if isinstance(prop, hybrid_property)
-    )
+    }
 
 
 def is_hybrid_property(model, attr_name):
-    if isinstance(attr_name, string_types):
-        names = attr_name.split('.')
-        last_model = model
-        for i in range(len(names) - 1):
-            attr = getattr(last_model, names[i])
-            if is_association_proxy(attr):
-                attr = attr.remote_attr
-            last_model = attr.property.argument
-            if isinstance(last_model, string_types):
-                last_model = attr.property._clsregistry_resolve_name(last_model)()
-            elif isinstance(last_model, _class_resolver):
-                last_model = model._decl_class_registry[last_model.arg]
-            elif isinstance(last_model, (types.FunctionType, types.MethodType)):
-                last_model = last_model()
-        last_name = names[-1]
-        return last_name in get_hybrid_properties(last_model)
-    else:
+    if not isinstance(attr_name, string_types):
         return attr_name.name in get_hybrid_properties(model)
+    names = attr_name.split('.')
+    last_model = model
+    for i in range(len(names) - 1):
+        attr = getattr(last_model, names[i])
+        if is_association_proxy(attr):
+            attr = attr.remote_attr
+        last_model = attr.property.argument
+        if isinstance(last_model, string_types):
+            last_model = attr.property._clsregistry_resolve_name(last_model)()
+        elif isinstance(last_model, _class_resolver):
+            last_model = model._decl_class_registry[last_model.arg]
+        elif isinstance(last_model, (types.FunctionType, types.MethodType)):
+            last_model = last_model()
+    last_name = names[-1]
+    return last_name in get_hybrid_properties(last_model)
 
 
 def is_relationship(attr):

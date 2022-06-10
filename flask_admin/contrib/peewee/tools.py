@@ -4,18 +4,16 @@ def get_primary_key(model):
 
 def parse_like_term(term):
     if term.startswith('^'):
-        stmt = '%s%%' % term[1:]
+        return '%s%%' % term[1:]
     elif term.startswith('='):
-        stmt = term[1:]
+        return term[1:]
     else:
-        stmt = '%%%s%%' % term
-
-    return stmt
+        return '%%%s%%' % term
 
 
 def get_meta_fields(model):
-    if hasattr(model._meta, 'sorted_fields'):
-        fields = model._meta.sorted_fields
-    else:
-        fields = model._meta.get_fields()
-    return fields
+    return (
+        model._meta.sorted_fields
+        if hasattr(model._meta, 'sorted_fields')
+        else model._meta.get_fields()
+    )

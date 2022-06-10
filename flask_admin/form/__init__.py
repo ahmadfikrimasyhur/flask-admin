@@ -35,7 +35,10 @@ def recreate_field(unbound):
             UnboundField instance
     """
     if not isinstance(unbound, UnboundField):
-        raise ValueError('recreate_field expects UnboundField instance, %s was passed.' % type(unbound))
+        raise ValueError(
+            f'recreate_field expects UnboundField instance, {type(unbound)} was passed.'
+        )
+
 
     return unbound.field_class(*unbound.args, **unbound.kwargs)
 

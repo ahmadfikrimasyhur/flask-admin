@@ -32,7 +32,7 @@ class UserInfo(BaseModel):
     user = peewee.ForeignKeyField(User)
 
     def __unicode__(self):
-        return '%s - %s' % (self.key, self.value)
+        return f'{self.key} - {self.value}'
 
 
 class Post(BaseModel):

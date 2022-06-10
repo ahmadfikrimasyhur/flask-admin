@@ -29,16 +29,10 @@ class MockView(base.BaseView):
             return 'Failure!'
 
     def is_accessible(self):
-        if self.allow_access:
-            return super(MockView, self).is_accessible()
-
-        return False
+        return super(MockView, self).is_accessible() if self.allow_access else False
 
     def is_visible(self):
-        if self.visible:
-            return super(MockView, self).is_visible()
-
-        return False
+        return super(MockView, self).is_visible() if self.visible else False
 
 
 class MockMethodView(base.BaseView):
@@ -465,7 +459,7 @@ def check_class_name():
 def check_endpoint():
     class CustomView(MockView):
         def _get_endpoint(self, endpoint):
-            return 'admin.' + super(CustomView, self)._get_endpoint(endpoint)
+            return f'admin.{super(CustomView, self)._get_endpoint(endpoint)}'
 
     view = CustomView()
     assert view.endpoint == 'admin.customview'

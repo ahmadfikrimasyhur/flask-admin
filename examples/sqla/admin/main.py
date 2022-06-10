@@ -15,7 +15,7 @@ from flask_admin.babel import gettext
 # Flask views
 @app.route('/')
 def index():
-    tmp = u"""
+    return u"""
 <p><a href="/admin/?lang=en">Click me to get to Admin! (English)</a></p>
 <p><a href="/admin/?lang=cs">Click me to get to Admin! (Czech)</a></p>
 <p><a href="/admin/?lang=de">Click me to get to Admin! (German)</a></p>
@@ -28,7 +28,6 @@ def index():
 <p><a href="/admin/?lang=zh_CN">Click me to get to Admin! (Chinese - Simplified)</a></p>
 <p><a href="/admin/?lang=zh_TW">Click me to get to Admin! (Chinese - Traditional)</a></p>
 """
-    return tmp
 
 
 @app.route('/favicon.ico')
@@ -50,7 +49,11 @@ class FilterLastNameBrown(BaseSQLAFilter):
 
 # Customized User model admin
 def phone_number_formatter(view, context, model, name):
-    return Markup("<nobr>{}</nobr>".format(model.phone_number)) if model.phone_number else None
+    return (
+        Markup(f"<nobr>{model.phone_number}</nobr>")
+        if model.phone_number
+        else None
+    )
 
 
 def is_numberic_validator(form, field):

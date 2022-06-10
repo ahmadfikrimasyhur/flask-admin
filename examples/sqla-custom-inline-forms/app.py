@@ -89,9 +89,7 @@ class InlineModelForm(InlineFormAdmin):
         return form_class
 
     def on_model_change(self, form, model):
-        file_data = request.files.get(form.upload.name)
-
-        if file_data:
+        if file_data := request.files.get(form.upload.name):
             model.path = secure_filename(file_data.filename)
             file_data.save(op.join(base_path, model.path))
 

@@ -20,9 +20,7 @@ class InlineFieldList(FieldList):
         super(InlineFieldList, self).__init__(*args, **kwargs)
 
     def __call__(self, **kwargs):
-        # Create template
-        meta = getattr(self, 'meta', None)
-        if meta:
+        if meta := getattr(self, 'meta', None):
             template = self.unbound_field.bind(form=None, name='', _meta=meta)
         else:
             template = self.unbound_field.bind(form=None, name='')
@@ -47,7 +45,7 @@ class InlineFieldList(FieldList):
         # Postprocess - contribute flag
         if formdata:
             for f in self.entries:
-                key = 'del-%s' % f.id
+                key = f'del-{f.id}'
                 f._should_delete = key in formdata
 
         return res
@@ -60,17 +58,17 @@ class InlineFieldList(FieldList):
             that FieldList validates all its enclosed fields first before running any
             of its own validators.
         """
-        self.errors = []
+        self.errors = [
+            subfield.errors
+            for subfield in self.entries
+            if not self.should_delete(subfield) and not subfield.validate(form)
+        ]
 
-        # Run validators on all entries within
-        for subfield in self.entries:
-            if not self.should_delete(subfield) and not subfield.validate(form):
-                self.errors.append(subfield.errors)
 
         chain = itertools.chain(self.validators, extra_validators)
         self._run_validation_chain(form, chain)
 
-        return len(self.errors) == 0
+        return not self.errors
 
     def should_delete(self, field):
         return getattr(field, '_should_delete', False)
@@ -83,7 +81,7 @@ class InlineFieldList(FieldList):
             ivalues = iter([])
 
         candidates = itertools.chain(ivalues, itertools.repeat(None))
-        _fake = type(str('_fake'), (object, ), {})
+        _fake = type('_fake', (object, ), {})
 
         output = []
         for field, data in zip(self.entries, candidates):
@@ -192,8 +190,7 @@ class AjaxSelectMultipleField(AjaxSelectField):
         self._invalid_formdata = False
 
     def _get_data(self):
-        formdata = self._formdata
-        if formdata:
+        if formdata := self._formdata:
             data = []
 
             # TODO: Optimize?

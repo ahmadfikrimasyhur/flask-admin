@@ -94,11 +94,14 @@ def get_dict_attr(obj, attr, default=None):
         :param default:
             Default value if attribute was not found
     """
-    for obj in [obj] + obj.__class__.mro():
-        if attr in obj.__dict__:
-            return obj.__dict__[attr]
-
-    return default
+    return next(
+        (
+            obj.__dict__[attr]
+            for obj in [obj] + obj.__class__.mro()
+            if attr in obj.__dict__
+        ),
+        default,
+    )
 
 
 def escape(value):
@@ -134,17 +137,16 @@ def iterdecode(value):
     escaped = False
 
     for c in value:
-        if not escaped:
-            if c == CHAR_ESCAPE:
-                escaped = True
-                continue
-            elif c == CHAR_SEPARATOR:
-                result.append(accumulator)
-                accumulator = u''
-                continue
-        else:
+        if escaped:
             escaped = False
 
+        elif c == CHAR_ESCAPE:
+            escaped = True
+            continue
+        elif c == CHAR_SEPARATOR:
+            result.append(accumulator)
+            accumulator = u''
+            continue
         accumulator += c
 
     result.append(accumulator)

@@ -23,9 +23,7 @@ babel = Babel(app)
 
 @babel.localeselector
 def get_locale():
-    override = request.args.get('lang')
-
-    if override:
+    if override := request.args.get('lang'):
         session['lang'] = override
 
     return session.get('lang', 'en')
@@ -58,7 +56,7 @@ class Post(db.Model):
 # Flask views
 @app.route('/')
 def index():
-    tmp = u"""
+    return u"""
 <p><a href="/admin/?lang=en">Click me to get to Admin! (English)</a></p>
 <p><a href="/admin/?lang=cs">Click me to get to Admin! (Czech)</a></p>
 <p><a href="/admin/?lang=de">Click me to get to Admin! (German)</a></p>
@@ -71,7 +69,6 @@ def index():
 <p><a href="/admin/?lang=zh_CN">Click me to get to Admin! (Chinese - Simplified)</a></p>
 <p><a href="/admin/?lang=zh_TW">Click me to get to Admin! (Chinese - Traditional)</a></p>
 """
-    return tmp
 
 if __name__ == '__main__':
     # Create admin

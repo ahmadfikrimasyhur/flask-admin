@@ -72,7 +72,7 @@ class InlineModelFormList(InlineFieldList):
         attr = getattr(self.model, self.prop)
         values = self.model.select().where(attr == model_id).execute()
 
-        pk_map = dict((str(getattr(v, self._pk)), v) for v in values)
+        pk_map = {str(getattr(v, self._pk)): v for v in values}
 
         # Handle request data
         for field in self.entries:
@@ -123,9 +123,7 @@ class CustomModelConverter(ModelConverter):
         self.overrides = getattr(self.view, 'form_overrides', None) or {}
 
     def handle_foreign_key(self, model, field, **kwargs):
-        loader = getattr(self.view, '_form_ajax_refs', {}).get(field.name)
-
-        if loader:
+        if loader := getattr(self.view, '_form_ajax_refs', {}).get(field.name):
             if field.null:
                 kwargs['allow_blank'] = True
 
@@ -199,13 +197,14 @@ class InlineModelConverter(InlineModelConverterBase):
             else:
                 model = getattr(p, 'model', None)
                 if model is None:
-                    raise Exception('Unknown inline model admin: %s' % repr(p))
+                    raise Exception(f'Unknown inline model admin: {repr(p)}')
 
-                attrs = dict()
+                attrs = {
+                    attr: getattr(p, attr)
+                    for attr in dir(p)
+                    if not attr.startswith('_') and attr != 'model'
+                }
 
-                for attr in dir(p):
-                    if not attr.startswith('_') and attr != 'model':
-                        attrs[attr] = getattr(p, attr)
 
                 info = InlineFormAdmin(model, **attrs)
 
@@ -215,13 +214,11 @@ class InlineModelConverter(InlineModelConverterBase):
         return info
 
     def process_ajax_refs(self, info):
-        refs = getattr(info, 'form_ajax_refs', None)
-
         result = {}
 
-        if refs:
+        if refs := getattr(info, 'form_ajax_refs', None):
             for name, opts in iteritems(refs):
-                new_name = '%s.%s' % (info.model.__name__.lower(), name)
+                new_name = f'{info.model.__name__.lower()}.{name}'
 
                 loader = None
                 if isinstance(opts, (list, tuple)):
@@ -243,12 +240,11 @@ class InlineModelConverter(InlineModelConverterBase):
         for field in get_meta_fields(info.model):
             field_type = type(field)
 
-            if field_type == ForeignKeyField:
-                if field.rel_model == model:
-                    reverse_field = field
-                    break
+            if field_type == ForeignKeyField and field.rel_model == model:
+                reverse_field = field
+                break
         else:
-            raise Exception('Cannot find reverse relation for model %s' % info.model)
+            raise Exception(f'Cannot find reverse relation for model {info.model}')
 
         # Remove reverse property from the list
         ignore = [reverse_field.name]

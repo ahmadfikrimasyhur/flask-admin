@@ -14,12 +14,11 @@ class BaseListRowAction(object):
         return self.render(context, row_id, row)
 
     def _resolve_symbol(self, context, symbol):
-        if '.' in symbol:
-            parts = symbol.split('.')
-            m = context.resolve(parts[0])
-            return reduce(getattr, parts[1:], m)
-        else:
+        if '.' not in symbol:
             return context.resolve(symbol)
+        parts = symbol.split('.')
+        m = context.resolve(parts[0])
+        return reduce(getattr, parts[1:], m)
 
 
 class LinkRowAction(BaseListRowAction):

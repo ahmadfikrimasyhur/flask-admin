@@ -27,17 +27,25 @@ def grid_formatter(view, value):
 
 
 def grid_image_formatter(view, value):
-    if not value.grid_id:
-        return ''
-
-    return Markup(
-        ('<div class="image-thumbnail">' +
-            '<a href="%(url)s" target="_blank"><img src="%(thumb)s"/></a>' +
-         '</div>') %
-        {
-            'url': view.get_url('.api_file_view', **helpers.make_gridfs_args(value)),
-            'thumb': view.get_url('.api_file_view', **helpers.make_thumb_args(value)),
-        })
+    return (
+        Markup(
+            (
+                '<div class="image-thumbnail">'
+                + '<a href="%(url)s" target="_blank"><img src="%(thumb)s"/></a>'
+                + '</div>'
+            )
+            % {
+                'url': view.get_url(
+                    '.api_file_view', **helpers.make_gridfs_args(value)
+                ),
+                'thumb': view.get_url(
+                    '.api_file_view', **helpers.make_thumb_args(value)
+                ),
+            }
+        )
+        if value.grid_id
+        else ''
+    )
 
 
 DEFAULT_FORMATTERS = BASE_FORMATTERS.copy()

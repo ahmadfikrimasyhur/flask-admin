@@ -154,7 +154,7 @@ def test_model():
     assert rv.status_code == 200
     assert b'test1large' in rv.data
 
-    url = '/admin/model1/edit/?id=%s' % model.id
+    url = f'/admin/model1/edit/?id={model.id}'
     rv = client.get(url)
     assert rv.status_code == 200
 
@@ -168,7 +168,7 @@ def test_model():
     assert model.test3 is None or model.test3 == ''
     assert model.test4 is None or model.test4 == ''
 
-    url = '/admin/model1/delete/?id=%s' % model.id
+    url = f'/admin/model1/delete/?id={model.id}'
     rv = client.post(url)
     assert rv.status_code == 302
     assert Model1.select().count() == 0
@@ -1045,7 +1045,7 @@ def test_export_csv():
                            endpoint='row_limit_2')
     admin.add_view(view)
 
-    for x in range(5):
+    for _ in range(5):
         fill_db(Model1, Model2)
 
     client = app.test_client()

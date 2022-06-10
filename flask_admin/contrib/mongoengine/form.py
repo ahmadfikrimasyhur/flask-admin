@@ -28,9 +28,7 @@ class CustomModelConverter(orm.ModelConverter):
         self.view = view
 
     def _get_field_override(self, name):
-        form_overrides = getattr(self.view, 'form_overrides', None)
-
-        if form_overrides:
+        if form_overrides := getattr(self.view, 'form_overrides', None):
             return form_overrides.get(name)
 
         return None
@@ -68,7 +66,7 @@ class CustomModelConverter(orm.ModelConverter):
         }
 
         if field_args:
-            kwargs.update(field_args)
+            kwargs |= field_args
 
         if kwargs['validators']:
             # Create a copy of the list since we will be modifying it.
@@ -98,8 +96,7 @@ class CustomModelConverter(orm.ModelConverter):
         if hasattr(field, 'to_form_field'):
             return field.to_form_field(model, kwargs)
 
-        override = self._get_field_override(field.name)
-        if override:
+        if override := self._get_field_override(field.name):
             return override(**kwargs)
 
         if ftype in self.converters:
@@ -116,8 +113,7 @@ class CustomModelConverter(orm.ModelConverter):
             raise ValueError('ListField "%s" must have field specified for model %s' % (field.name, model))
 
         if isinstance(field.field, ReferenceField):
-            loader = getattr(self.view, '_form_ajax_refs', {}).get(field.name)
-            if loader:
+            if loader := getattr(self.view, '_form_ajax_refs', {}).get(field.name):
                 return AjaxSelectMultipleField(loader, **kwargs)
 
             kwargs['widget'] = form.Select2Widget(multiple=True)
@@ -166,8 +162,7 @@ class CustomModelConverter(orm.ModelConverter):
     def conv_Reference(self, model, field, kwargs):
         kwargs['allow_blank'] = not field.required
 
-        loader = getattr(self.view, '_form_ajax_refs', {}).get(field.name)
-        if loader:
+        if loader := getattr(self.view, '_form_ajax_refs', {}).get(field.name):
             return AjaxSelectField(loader, **kwargs)
 
         kwargs['widget'] = form.Select2Widget()
@@ -237,7 +232,7 @@ def get_form(model, converter,
             if p is not None:
                 return p
 
-            raise ValueError('Invalid model property name %s.%s' % (model, name))
+            raise ValueError(f'Invalid model property name {model}.{name}')
 
         properties = ((p, find(p)) for p in only)
     elif exclude:

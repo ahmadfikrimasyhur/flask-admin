@@ -97,7 +97,7 @@ class ModelView(BaseModelView):
             name = self._prettify_name(coll.name)
 
         if endpoint is None:
-            endpoint = ('%sview' % coll.name).lower()
+            endpoint = f'{coll.name}view'.lower()
 
         super(ModelView, self).__init__(None, name, category, endpoint, url,
                                         menu_class_name=menu_class_name,
@@ -184,11 +184,9 @@ class ModelView(BaseModelView):
 
             regex = parse_like_term(value)
 
-            stmt = []
-            for field in self._search_fields:
-                stmt.append({field: {'$regex': regex}})
-
-            if stmt:
+            if stmt := [
+                {field: {'$regex': regex}} for field in self._search_fields
+            ]:
                 if len(stmt) == 1:
                     queries.append(stmt[0])
                 else:
@@ -196,16 +194,8 @@ class ModelView(BaseModelView):
 
         # Construct final query
         if queries:
-            if len(queries) == 1:
-                final = queries[0]
-            else:
-                final = {'$and': queries}
-
-            if query:
-                query = {'$and': [query, final]}
-            else:
-                query = final
-
+            final = queries[0] if len(queries) == 1 else {'$and': queries}
+            query = {'$and': [query, final]} if query else final
         return query
 
     def get_list(self, page, sort_column, sort_desc, search, filters,
@@ -251,29 +241,22 @@ class ModelView(BaseModelView):
             query = self._search(query, search)
 
         # Get count
-        count = self.coll.find(query).count() if not self.simple_list_pager else None
+        count = None if self.simple_list_pager else self.coll.find(query).count()
 
         # Sorting
         sort_by = None
 
         if sort_column:
             sort_by = [(sort_column, pymongo.DESCENDING if sort_desc else pymongo.ASCENDING)]
-        else:
-            order = self._get_default_order()
-
-            if order:
-                sort_by = [(col, pymongo.DESCENDING if desc else pymongo.ASCENDING)
-                           for (col, desc) in order]
+        elif order := self._get_default_order():
+            sort_by = [(col, pymongo.DESCENDING if desc else pymongo.ASCENDING)
+                       for (col, desc) in order]
 
         # Pagination
         if page_size is None:
             page_size = self.page_size
 
-        skip = 0
-
-        if page and page_size:
-            skip = page * page_size
-
+        skip = page * page_size if page and page_size else 0
         results = self.coll.find(query, sort=sort_by, skip=skip, limit=page_size)
 
         if execute:
@@ -386,12 +369,7 @@ class ModelView(BaseModelView):
             lazy_gettext('Are you sure you want to delete selected records?'))
     def action_delete(self, ids):
         try:
-            count = 0
-
-            # TODO: Optimize me
-            for pk in ids:
-                if self.delete_model(self.get_one(pk)):
-                    count += 1
+            count = sum(1 for pk in ids if self.delete_model(self.get_one(pk)))
 
             flash(ngettext('Record was successfully deleted.',
                            '%(count)s records were successfully deleted.',

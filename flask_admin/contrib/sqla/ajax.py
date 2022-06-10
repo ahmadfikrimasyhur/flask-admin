@@ -26,7 +26,10 @@ class QueryAjaxModelLoader(AjaxModelLoader):
         self.filters = options.get('filters')
 
         if not self.fields:
-            raise ValueError('AJAX loading requires `fields` to be specified for %s.%s' % (model, self.name))
+            raise ValueError(
+                f'AJAX loading requires `fields` to be specified for {model}.{self.name}'
+            )
+
 
         self._cached_fields = self._process_fields()
 
@@ -43,7 +46,7 @@ class QueryAjaxModelLoader(AjaxModelLoader):
                 attr = getattr(self.model, field, None)
 
                 if not attr:
-                    raise ValueError('%s.%s does not exist.' % (self.model, field))
+                    raise ValueError(f'{self.model}.{field} does not exist.')
 
                 remote_fields.append(attr)
             else:
@@ -53,10 +56,7 @@ class QueryAjaxModelLoader(AjaxModelLoader):
         return remote_fields
 
     def format(self, model):
-        if not model:
-            return None
-
-        return getattr(model, self.pk), as_unicode(model)
+        return (getattr(model, self.pk), as_unicode(model)) if model else None
 
     def get_query(self):
         return self.session.query(self.model)
@@ -75,7 +75,11 @@ class QueryAjaxModelLoader(AjaxModelLoader):
         query = query.filter(or_(*filters))
 
         if self.filters:
-            filters = [text("%s.%s" % (self.model.__tablename__.lower(), value)) for value in self.filters]
+            filters = [
+                text(f"{self.model.__tablename__.lower()}.{value}")
+                for value in self.filters
+            ]
+
             query = query.filter(and_(*filters))
 
         if self.order_by:
@@ -88,10 +92,10 @@ def create_ajax_loader(model, session, name, field_name, options):
     attr = getattr(model, field_name, None)
 
     if attr is None:
-        raise ValueError('Model %s does not have field %s.' % (model, field_name))
+        raise ValueError(f'Model {model} does not have field {field_name}.')
 
     if not is_relationship(attr) and not is_association_proxy(attr):
-        raise ValueError('%s.%s is not a relation.' % (model, field_name))
+        raise ValueError(f'{model}.{field_name} is not a relation.')
 
     if is_association_proxy(attr):
         attr = attr.remote_attr

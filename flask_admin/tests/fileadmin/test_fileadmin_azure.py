@@ -16,7 +16,7 @@ class AzureFileAdminTests(Base.FileAdminTests):
         if not azure.BlockBlobService:
             raise SkipTest('AzureFileAdmin dependencies not installed')
 
-        self._container_name = 'fileadmin-tests-%s' % uuid4()
+        self._container_name = f'fileadmin-tests-{uuid4()}'
 
         if not self._test_storage or not self._container_name:
             raise SkipTest('AzureFileAdmin test credentials not set')

@@ -108,9 +108,11 @@ class MyAdminIndexView(admin.AdminIndexView):
 
     @expose('/')
     def index(self):
-        if not login.current_user.is_authenticated:
-            return redirect(url_for('.login_view'))
-        return super(MyAdminIndexView, self).index()
+        return (
+            super(MyAdminIndexView, self).index()
+            if login.current_user.is_authenticated
+            else redirect(url_for('.login_view'))
+        )
 
     @expose('/login/', methods=('GET', 'POST'))
     def login_view(self):
@@ -201,8 +203,14 @@ def build_sample_db():
         user.first_name = first_names[i]
         user.last_name = last_names[i]
         user.login = user.first_name.lower()
-        user.email = user.login + "@example.com"
-        user.password = generate_password_hash(''.join(random.choice(string.ascii_lowercase + string.digits) for i in range(10)))
+        user.email = f"{user.login}@example.com"
+        user.password = generate_password_hash(
+            ''.join(
+                random.choice(string.ascii_lowercase + string.digits)
+                for _ in range(10)
+            )
+        )
+
         db.session.add(user)
 
     db.session.commit()

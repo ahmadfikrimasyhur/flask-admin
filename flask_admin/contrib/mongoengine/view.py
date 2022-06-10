@@ -26,7 +26,7 @@ from .subdoc import convert_subdocuments
 log = logging.getLogger("flask-admin.mongo")
 
 
-SORTABLE_FIELDS = set((
+SORTABLE_FIELDS = {
     mongoengine.StringField,
     mongoengine.IntField,
     mongoengine.FloatField,
@@ -38,8 +38,8 @@ SORTABLE_FIELDS = set((
     mongoengine.ReferenceField,
     mongoengine.EmailField,
     mongoengine.UUIDField,
-    mongoengine.URLField
-))
+    mongoengine.URLField,
+}
 
 
 class ModelView(BaseModelView):
@@ -339,14 +339,12 @@ class ModelView(BaseModelView):
         """
             Return a dictionary of sortable columns (name, field)
         """
-        columns = {}
-
-        for n, f in self._get_model_fields():
-            if type(f) in SORTABLE_FIELDS:
-                if self.column_display_pk or type(f) != mongoengine.ObjectIdField:
-                    columns[n] = f
-
-        return columns
+        return {
+            n: f
+            for n, f in self._get_model_fields()
+            if type(f) in SORTABLE_FIELDS
+            and (self.column_display_pk or type(f) != mongoengine.ObjectIdField)
+        }
 
     def init_search(self):
         """
@@ -378,30 +376,22 @@ class ModelView(BaseModelView):
             :param name:
                 Either field name or field instance
         """
-        if isinstance(name, string_types):
-            attr = self.model._fields.get(name)
-        else:
-            attr = name
-
+        attr = self.model._fields.get(name) if isinstance(name, string_types) else name
         if attr is None:
-            raise Exception('Failed to find field for filter: %s' % name)
+            raise Exception(f'Failed to find field for filter: {name}')
 
-        # Find name
-        visible_name = None
-
-        if not isinstance(name, string_types):
-            visible_name = self.get_column_name(attr.name)
+        visible_name = (
+            None
+            if isinstance(name, string_types)
+            else self.get_column_name(attr.name)
+        )
 
         if not visible_name:
             visible_name = self.get_column_name(name)
 
         # Convert filter
         type_name = type(attr).__name__
-        flt = self.filter_converter.convert(type_name,
-                                            attr,
-                                            visible_name)
-
-        return flt
+        return self.filter_converter.convert(type_name, attr, visible_name)
 
     def is_valid_filter(self, filter):
         """
@@ -416,15 +406,15 @@ class ModelView(BaseModelView):
         """
             Create form from the model.
         """
-        form_class = get_form(self.model,
-                              self.model_form_converter(self),
-                              base_class=self.form_base_class,
-                              only=self.form_columns,
-                              exclude=self.form_excluded_columns,
-                              field_args=self.form_args,
-                              extra_fields=self.form_extra_fields)
-
-        return form_class
+        return get_form(
+            self.model,
+            self.model_form_converter(self),
+            base_class=self.form_base_class,
+            only=self.form_columns,
+            exclude=self.form_excluded_columns,
+            field_args=self.form_args,
+            extra_fields=self.form_extra_fields,
+        )
 
     def scaffold_list_form(self, widget=None, validators=None):
         """
@@ -469,10 +459,10 @@ class ModelView(BaseModelView):
         for field in self._search_fields:
             if type(field) == mongoengine.ReferenceField:
                 import re
-                regex = re.compile('.*%s.*' % term)
+                regex = re.compile(f'.*{term}.*')
             else:
                 regex = term
-            flt = {'%s__%s' % (field.name, op): regex}
+            flt = {f'{field.name}__{op}': regex}
             q = mongoengine.Q(**flt)
 
             if criteria is None:
@@ -517,18 +507,14 @@ class ModelView(BaseModelView):
             query = self._search(query, search)
 
         # Get count
-        count = query.count() if not self.simple_list_pager else None
+        count = None if self.simple_list_pager else query.count()
 
         # Sorting
         if sort_column:
-            query = query.order_by('%s%s' % ('-' if sort_desc else '', sort_column))
-        else:
-            order = self._get_default_order()
-
-            if order:
-                keys = ['%s%s' % ('-' if desc else '', col)
-                        for (col, desc) in order]
-                query = query.order_by(*keys)
+            query = query.order_by(f"{'-' if sort_desc else ''}{sort_column}")
+        elif order := self._get_default_order():
+            keys = [f"{'-' if desc else ''}{col}" for (col, desc) in order]
+            query = query.order_by(*keys)
 
         # Pagination
         if page_size is None:
@@ -667,11 +653,11 @@ class ModelView(BaseModelView):
             lazy_gettext('Are you sure you want to delete selected records?'))
     def action_delete(self, ids):
         try:
-            count = 0
-
             all_ids = [self.object_id_converter(pk) for pk in ids]
-            for obj in self.get_query().in_bulk(all_ids).values():
-                count += self.delete_model(obj)
+            count = sum(
+                self.delete_model(obj)
+                for obj in self.get_query().in_bulk(all_ids).values()
+            )
 
             flash(ngettext('Record was successfully deleted.',
                            '%(count)s records were successfully deleted.',

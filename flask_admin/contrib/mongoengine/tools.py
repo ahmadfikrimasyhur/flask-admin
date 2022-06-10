@@ -24,5 +24,5 @@ def parse_like_term(term):
         oper = 'contains'
     # add case insensitive flag
     if not case_sensitive:
-        oper = 'i' + oper
+        oper = f'i{oper}'
     return oper, term

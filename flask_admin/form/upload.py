@@ -61,16 +61,21 @@ class FileUploadInput(object):
         else:
             value = field.data or ''
 
-        return Markup(template % {
-            'text': html_params(type='text',
-                                readonly='readonly',
-                                value=value,
-                                name=field.name),
-            'file': html_params(type='file',
-                                value=value,
-                                **kwargs),
-            'marker': '_%s-delete' % field.name
-        })
+        return Markup(
+            (
+                template
+                % {
+                    'text': html_params(
+                        type='text',
+                        readonly='readonly',
+                        value=value,
+                        name=field.name,
+                    ),
+                    'file': html_params(type='file', value=value, **kwargs),
+                    'marker': f'_{field.name}-delete',
+                }
+            )
+        )
 
 
 class ImageUploadInput(object):
@@ -95,13 +100,11 @@ class ImageUploadInput(object):
         kwargs.setdefault('name', field.name)
 
         args = {
-            'text': html_params(type='hidden',
-                                value=field.data,
-                                name=field.name),
-            'file': html_params(type='file',
-                                **kwargs),
-            'marker': '_%s-delete' % field.name
+            'text': html_params(type='hidden', value=field.data, name=field.name),
+            'file': html_params(type='file', **kwargs),
+            'marker': f'_{field.name}-delete',
         }
+
 
         if field.data and isinstance(field.data, string_types):
             url = self.get_url(field)
@@ -198,12 +201,15 @@ class FileUploadField(fields.StringField):
             :param filename:
                 File name to check
         """
-        if not self.allowed_extensions:
-            return True
-
-        return ('.' in filename and
-                filename.rsplit('.', 1)[1].lower() in
-                map(lambda x: x.lower(), self.allowed_extensions))
+        return (
+            (
+                '.' in filename
+                and filename.rsplit('.', 1)[1].lower()
+                in map(lambda x: x.lower(), self.allowed_extensions)
+            )
+            if self.allowed_extensions
+            else True
+        )
 
     def _is_uploaded_file(self, data):
         return (data and isinstance(data, FileStorage) and data.filename)
@@ -221,7 +227,7 @@ class FileUploadField(fields.StringField):
 
     def process(self, formdata, data=unset_value, extra_filters=None):
         if formdata:
-            marker = '_%s-delete' % self.name
+            marker = f'_{self.name}-delete'
             if marker in formdata:
                 self._should_delete = True
 
@@ -241,12 +247,10 @@ class FileUploadField(fields.StringField):
 
     def populate_obj(self, obj, name):
         field = getattr(obj, name, None)
-        if field:
-            # If field should be deleted, clean it up
-            if self._should_delete:
-                self._delete_file(field)
-                setattr(obj, name, None)
-                return
+        if field and self._should_delete:
+            self._delete_file(field)
+            setattr(obj, name, None)
+            return
 
         if self._is_uploaded_file(self.data):
             if field:
@@ -412,7 +416,7 @@ class ImageUploadField(FileUploadField):
             try:
                 self.image = Image.open(self.data)
             except Exception as e:
-                raise ValidationError('Invalid image: %s' % e)
+                raise ValidationError(f'Invalid image: {e}')
 
     # Deletion
     def _delete_file(self, filename):
@@ -465,10 +469,9 @@ class ImageUploadField(FileUploadField):
         if image.size[0] > width or image.size[1] > height:
             if force:
                 return ImageOps.fit(self.image, (width, height), Image.ANTIALIAS)
-            else:
-                thumb = self.image.copy()
-                thumb.thumbnail((width, height), Image.ANTIALIAS)
-                return thumb
+            thumb = self.image.copy()
+            thumb.thumbnail((width, height), Image.ANTIALIAS)
+            return thumb
 
         return image
 
@@ -485,7 +488,7 @@ class ImageUploadField(FileUploadField):
     def _get_save_format(self, filename, image):
         if image.format not in self.keep_image_formats:
             name, ext = op.splitext(filename)
-            filename = '%s.jpg' % name
+            filename = f'{name}.jpg'
             return filename, 'JPEG'
 
         return filename, image.format
@@ -504,4 +507,4 @@ def thumbgen_filename(filename):
         Generate thumbnail name from filename.
     """
     name, ext = op.splitext(filename)
-    return '%s_thumb%s' % (name, ext)
+    return f'{name}_thumb{ext}'

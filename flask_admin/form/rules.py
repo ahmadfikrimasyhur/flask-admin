@@ -82,8 +82,7 @@ class NestedRule(BaseRule):
         """
         visible_fields = []
         for rule in self.rules:
-            for field in rule.visible_fields:
-                visible_fields.append(field)
+            visible_fields.extend(iter(rule.visible_fields))
         return visible_fields
 
     def __iter__(self):
@@ -103,10 +102,7 @@ class NestedRule(BaseRule):
             :param field_args:
                 Optional arguments that should be passed to template or the field
         """
-        result = []
-
-        for r in self.rules:
-            result.append(r(form, form_opts, field_args))
+        result = [r(form, form_opts, field_args) for r in self.rules]
 
         return Markup(self.separator.join(result))
 
@@ -130,10 +126,7 @@ class Text(BaseRule):
         self.escape = escape
 
     def __call__(self, form, form_opts=None, field_args={}):
-        if self.escape:
-            return self.text
-
-        return Markup(self.text)
+        return self.text if self.escape else Markup(self.text)
 
 
 class HTML(Text):
@@ -205,10 +198,10 @@ class Macro(BaseRule):
         macro = self._resolve(context, self.macro_name)
 
         if not macro:
-            raise ValueError('Cannot find macro %s in current context.' % self.macro_name)
+            raise ValueError(f'Cannot find macro {self.macro_name} in current context.')
 
         opts = dict(self.default_args)
-        opts.update(field_args)
+        opts |= field_args
         return macro(**opts)
 
 
@@ -302,12 +295,12 @@ class Field(Macro):
         field = getattr(form, self.field_name, None)
 
         if field is None:
-            raise ValueError('Form %s does not have field %s' % (form, self.field_name))
+            raise ValueError(f'Form {form} does not have field {self.field_name}')
 
         opts = {}
 
         if form_opts:
-            opts.update(form_opts.widget_args.get(self.field_name, {}))
+            opts |= form_opts.widget_args.get(self.field_name, {})
 
         opts.update(field_args)
 
@@ -351,11 +344,7 @@ class FieldSet(NestedRule):
             :param separator:
                 Child rule separator
         """
-        if header:
-            rule_set = [Header(header)] + list(rules)
-        else:
-            rule_set = list(rules)
-
+        rule_set = [Header(header)] + list(rules) if header else list(rules)
         super(FieldSet, self).__init__(rule_set, separator=separator)
 
 
@@ -425,9 +414,7 @@ class Group(Macro):
     @property
     def visible_fields(self):
         fields = [self.field_name]
-        for cnf in self._addons:
-            if cnf['type'] == 'field':
-                fields.append(cnf['name'])
+        fields.extend(cnf['name'] for cnf in self._addons if cnf['type'] == 'field')
         return fields
 
     def __call__(self, form, form_opts=None, field_args={}):
@@ -444,13 +431,9 @@ class Group(Macro):
         field = getattr(form, self.field_name, None)
 
         if field is None:
-            raise ValueError('Form %s does not have field %s' % (form, self.field_name))
+            raise ValueError(f'Form {form} does not have field {self.field_name}')
 
-        if form_opts:
-            widget_args = form_opts.widget_args
-        else:
-            widget_args = {}
-
+        widget_args = form_opts.widget_args if form_opts else {}
         opts = {}
         prepend = []
         append = []
@@ -459,8 +442,7 @@ class Group(Macro):
             typ = cnf['type']
             if typ == 'field':
                 name = cnf['name']
-                fld = form._fields.get(name, None)
-                if fld:
+                if fld := form._fields.get(name, None):
                     w_args = widget_args.setdefault(name, {})
                     if fld.type in ('BooleanField', 'RadioField'):
                         w_args.setdefault('class', 'form-check-input')
@@ -484,7 +466,7 @@ class Group(Macro):
         if append:
             opts['append'] = Markup(''.join(append))
 
-        opts.update(widget_args.get(self.field_name, {}))
+        opts |= widget_args.get(self.field_name, {})
         opts.update(field_args)
 
         params = {
@@ -516,8 +498,7 @@ class RuleSet(object):
     def visible_fields(self):
         visible_fields = []
         for rule in self.rules:
-            for field in rule.visible_fields:
-                visible_fields.append(field)
+            visible_fields.extend(iter(rule.visible_fields))
         return visible_fields
 
     def convert_string(self, value):
@@ -558,5 +539,4 @@ class RuleSet(object):
         """
             Iterate through registered rules.
         """
-        for r in self.rules:
-            yield r
+        yield from self.rules
