@@ -36,9 +36,7 @@ class BaseFilter(object):
             :param view:
                 Associated administrative view class.
         """
-        options = self.options
-
-        if options:
+        if options := self.options:
             if callable(options):
                 options = options()
 
@@ -178,10 +176,7 @@ class BaseDateBetweenFilter(BaseFilter):
                      for range in value.split(' to ')]
             # if " to " is missing, fail validation
             # sqlalchemy's .between() will not work if end date is before start date
-            if (len(value) == 2) and (value[0] <= value[1]):
-                return True
-            else:
-                return False
+            return len(value) == 2 and value[0] <= value[1]
         except ValueError:
             return False
 
@@ -216,10 +211,7 @@ class BaseDateTimeBetweenFilter(BaseFilter):
         try:
             value = [datetime.datetime.strptime(range, '%Y-%m-%d %H:%M:%S')
                      for range in value.split(' to ')]
-            if (len(value) == 2) and (value[0] <= value[1]):
-                return True
-            else:
-                return False
+            return len(value) == 2 and value[0] <= value[1]
         except ValueError:
             return False
 
@@ -261,13 +253,9 @@ class BaseTimeBetweenFilter(BaseFilter):
         try:
             timetuples = [time.strptime(range, '%H:%M:%S')
                           for range in value.split(' to ')]
-            if (len(timetuples) == 2) and (timetuples[0] <= timetuples[1]):
-                return True
-            else:
-                return False
+            return len(timetuples) == 2 and timetuples[0] <= timetuples[1]
         except ValueError:
             raise
-            return False
 
 
 class BaseUuidFilter(BaseFilter):
@@ -313,7 +301,7 @@ class BaseFilterConverter(object):
         logic.
     """
     def __init__(self):
-        self.converters = dict()
+        self.converters = {}
 
         for p in dir(self):
             attr = getattr(self, p)

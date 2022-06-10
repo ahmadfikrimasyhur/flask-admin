@@ -37,7 +37,7 @@ class Unique(object):
                    .filter(self.column == field.data)
                    .one())
 
-            if not hasattr(form, '_obj') or not form._obj == obj:
+            if not hasattr(form, '_obj') or form._obj != obj:
                 if self.message is None:
                     self.message = field.gettext(u'Already exists.')
                 raise ValidationError(self.message)

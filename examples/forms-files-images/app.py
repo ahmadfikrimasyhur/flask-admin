@@ -111,7 +111,7 @@ class CKTextAreaWidget(widgets.TextArea):
     def __call__(self, field, **kwargs):
         # add WYSIWYG class to existing classes
         existing_classes = kwargs.pop('class', '') or kwargs.pop('class_', '')
-        kwargs['class'] = '{} {}'.format(existing_classes, "ckeditor")
+        kwargs['class'] = f'{existing_classes} ckeditor'
         return super(CKTextAreaWidget, self).__call__(field, **kwargs)
 
 
@@ -144,12 +144,15 @@ class FileView(sqla.ModelView):
 
 
 class ImageView(sqla.ModelView):
-    def _list_thumbnail(view, context, model, name):
-        if not model.path:
-            return ''
-
-        return Markup('<img src="%s">' % url_for('static',
-                                                 filename=form.thumbgen_filename(model.path)))
+    def _list_thumbnail(self, context, model, name):
+        return (
+            Markup(
+                '<img src="%s">'
+                % url_for('static', filename=form.thumbgen_filename(model.path))
+            )
+            if model.path
+            else ''
+        )
 
     column_formatters = {
         'path': _list_thumbnail
@@ -256,9 +259,9 @@ def build_sample_db():
         user = User()
         user.first_name = first_names[i]
         user.last_name = last_names[i]
-        user.email = user.first_name.lower() + "@example.com"
-        tmp = ''.join(random.choice(string.digits) for i in range(10))
-        user.phone = "(" + tmp[0:3] + ") " + tmp[3:6] + " " + tmp[6::]
+        user.email = f"{user.first_name.lower()}@example.com"
+        tmp = ''.join(random.choice(string.digits) for _ in range(10))
+        user.phone = "(" + tmp[:3] + ") " + tmp[3:6] + " " + tmp[6::]
         user.city = locations[i][0]
         user.country = locations[i][1]
         db.session.add(user)
@@ -267,13 +270,13 @@ def build_sample_db():
     for name in images:
         image = Image()
         image.name = name
-        image.path = name.lower() + ".jpg"
+        image.path = f"{name.lower()}.jpg"
         db.session.add(image)
 
     for i in [1, 2, 3]:
         file = File()
-        file.name = "Example " + str(i)
-        file.path = "example_" + str(i) + ".pdf"
+        file.name = f"Example {str(i)}"
+        file.path = f"example_{str(i)}.pdf"
         db.session.add(file)
 
     sample_text = "<h2>This is a test</h2>" + \

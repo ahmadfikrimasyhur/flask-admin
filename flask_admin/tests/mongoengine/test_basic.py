@@ -123,7 +123,7 @@ def test_model():
     assert rv.status_code == 200
     assert b'test1large' in rv.data
 
-    url = '/admin/model1/edit/?id=%s' % model.id
+    url = f'/admin/model1/edit/?id={model.id}'
     rv = client.get(url)
     assert rv.status_code == 200
 
@@ -137,7 +137,7 @@ def test_model():
     assert model.test3 == ''
     assert model.test4 == ''
 
-    url = '/admin/model1/delete/?id=%s' % model.id
+    url = f'/admin/model1/delete/?id={model.id}'
     rv = client.post(url)
     assert rv.status_code == 302
     assert Model1.objects.count() == 0
@@ -253,12 +253,12 @@ def test_details_view():
     assert '/admin/model2/details/' in data
 
     # test redirection when details are disabled
-    url = '/admin/model1/details/?url=%2Fadmin%2Fmodel1%2F&id=' + str(m1_id)
+    url = f'/admin/model1/details/?url=%2Fadmin%2Fmodel1%2F&id={str(m1_id)}'
     rv = client.get(url)
     assert rv.status_code == 302
 
     # test if correct data appears in details view when enabled
-    url = '/admin/model2/details/?url=%2Fadmin%2Fmodel2%2F&id=' + str(m2_id)
+    url = f'/admin/model2/details/?url=%2Fadmin%2Fmodel2%2F&id={str(m2_id)}'
     rv = client.get(url)
     data = rv.data.decode('utf-8')
     assert 'String Field' in data
@@ -266,7 +266,7 @@ def test_details_view():
     assert 'Int Field' in data
 
     # test column_details_list
-    url = '/admin/sf_view/details/?url=%2Fadmin%2Fsf_view%2F&id=' + str(m2_id)
+    url = f'/admin/sf_view/details/?url=%2Fadmin%2Fsf_view%2F&id={str(m2_id)}'
     rv = client.get(url)
     data = rv.data.decode('utf-8')
     assert 'String Field' in data
@@ -1185,7 +1185,7 @@ def test_export_csv():
                            endpoint='row_limit_2')
     admin.add_view(view)
 
-    for x in range(5):
+    for _ in range(5):
         fill_db(Model1, Model2)
 
     client = app.test_client()

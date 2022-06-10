@@ -44,13 +44,12 @@ class AdminModelConverter(ModelConverterBase):
         if 'label' in field_args:
             return field_args['label']
 
-        column_labels = get_property(self.view, 'column_labels', 'rename_columns')
-
-        if column_labels:
+        if column_labels := get_property(
+            self.view, 'column_labels', 'rename_columns'
+        ):
             return column_labels.get(name)
 
-        prettify_override = getattr(self.view, 'prettify_name', None)
-        if prettify_override:
+        if prettify_override := getattr(self.view, 'prettify_name', None):
             return prettify_override(name)
 
         return prettify_name(name)
@@ -59,23 +58,17 @@ class AdminModelConverter(ModelConverterBase):
         if 'description' in field_args:
             return field_args['description']
 
-        column_descriptions = getattr(self.view, 'column_descriptions', None)
-
-        if column_descriptions:
+        if column_descriptions := getattr(self.view, 'column_descriptions', None):
             return column_descriptions.get(name)
 
     def _get_field_override(self, name):
-        form_overrides = getattr(self.view, 'form_overrides', None)
-
-        if form_overrides:
+        if form_overrides := getattr(self.view, 'form_overrides', None):
             return form_overrides.get(name)
 
         return None
 
     def _model_select_field(self, prop, multiple, remote_model, **kwargs):
-        loader = getattr(self.view, '_form_ajax_refs', {}).get(prop.key)
-
-        if loader:
+        if loader := getattr(self.view, '_form_ajax_refs', {}).get(prop.key):
             if multiple:
                 return AjaxSelectMultipleField(loader, **kwargs)
             else:
@@ -118,9 +111,7 @@ class AdminModelConverter(ModelConverterBase):
             if not requirement_validator_specified:
                 kwargs['validators'].append(validators.InputRequired())
 
-        # Override field type if necessary
-        override = self._get_field_override(prop.key)
-        if override:
+        if override := self._get_field_override(prop.key):
             return override(**kwargs)
 
         multiple = (property_is_association_proxy or
@@ -138,21 +129,29 @@ class AdminModelConverter(ModelConverterBase):
         }
 
         if field_args:
-            kwargs.update(field_args)
+            kwargs |= field_args
 
         if kwargs['validators']:
             # Create a copy of the list since we will be modifying it.
             kwargs['validators'] = list(kwargs['validators'])
 
         # Check if it is relation or property
-        if hasattr(prop, 'direction') or is_association_proxy(prop):
+        if (
+            hasattr(prop, 'direction')
+            or not hasattr(prop, 'direction')
+            and is_association_proxy(prop)
+        ):
             property_is_association_proxy = is_association_proxy(prop)
             if property_is_association_proxy:
                 if not hasattr(prop.remote_attr, 'prop'):
                     raise Exception('Association proxy referencing another association proxy is not supported.')
                 prop = prop.remote_attr.prop
             return self._convert_relation(name, prop, property_is_association_proxy, kwargs)
-        elif hasattr(prop, 'columns'):  # Ignore pk/fk
+        elif (
+            not hasattr(prop, 'direction')
+            and not is_association_proxy(prop)
+            and hasattr(prop, 'columns')
+        ):  # Ignore pk/fk
             # Check if more than one column mapped to the property
             if len(prop.columns) > 1 and not isinstance(prop, ColumnProperty):
                 columns = filter_foreign_columns(model.__table__, prop.columns)
@@ -160,7 +159,10 @@ class AdminModelConverter(ModelConverterBase):
                 if len(columns) == 0:
                     return None
                 elif len(columns) > 1:
-                    warnings.warn('Can not convert multiple-column properties (%s.%s)' % (model, prop.key))
+                    warnings.warn(
+                        f'Can not convert multiple-column properties ({model}.{prop.key})'
+                    )
+
                     return None
 
                 column = columns[0]
@@ -184,18 +186,17 @@ class AdminModelConverter(ModelConverterBase):
                 if hidden_pk:
                     # If requested to add hidden field, show it
                     return fields.HiddenField()
-                else:
-                    # By default, don't show primary keys either
-                    # If PK is not explicitly allowed, ignore it
-                    if prop.key not in form_columns:
-                        return None
+                # By default, don't show primary keys either
+                # If PK is not explicitly allowed, ignore it
+                if prop.key not in form_columns:
+                    return None
 
-                    # Current Unique Validator does not work with multicolumns-pks
-                    if not has_multiple_pks(model):
-                        kwargs['validators'].append(Unique(self.session,
-                                                           model,
-                                                           column))
-                        unique = True
+                # Current Unique Validator does not work with multicolumns-pks
+                if not has_multiple_pks(model):
+                    kwargs['validators'].append(Unique(self.session,
+                                                       model,
+                                                       column))
+                    unique = True
 
             # If field is unique, validate it
             if column.unique and not unique:
@@ -228,9 +229,8 @@ class AdminModelConverter(ModelConverterBase):
                 if value is not None:
                     if getattr(default, 'is_callable', False):
                         value = lambda: default.arg(None)  # noqa: E731
-                    else:
-                        if not getattr(default, 'is_scalar', True):
-                            value = None
+                    elif not getattr(default, 'is_scalar', True):
+                        value = None
 
             if value is not None:
                 kwargs['default'] = value
@@ -239,16 +239,13 @@ class AdminModelConverter(ModelConverterBase):
             if column.nullable:
                 kwargs['validators'].append(validators.Optional())
 
-            # Override field type if necessary
-            override = self._get_field_override(prop.key)
-            if override:
+            if override := self._get_field_override(prop.key):
                 return override(**kwargs)
 
             # Check if a list of 'form_choices' are specified
             form_choices = getattr(self.view, 'form_choices', None)
             if mapper.class_ == self.view.model and form_choices:
-                choices = form_choices.get(prop.key)
-                if choices:
+                if choices := form_choices.get(prop.key):
                     return form.Select2Field(
                         choices=choices,
                         allow_blank=column.nullable,
@@ -441,7 +438,7 @@ def avoid_empty_strings(value):
         except AttributeError:
             # values are not always strings
             pass
-    return value if value else None
+    return value or None
 
 
 def choice_type_coerce_factory(type_):
@@ -474,10 +471,7 @@ def _resolve_prop(prop):
             Property to resolve
     """
     # Try to see if it is proxied property
-    if hasattr(prop, '_proxied_property'):
-        return prop._proxied_property
-
-    return prop
+    return prop._proxied_property if hasattr(prop, '_proxied_property') else prop
 
 
 # Get list of fields and generate form
@@ -527,7 +521,11 @@ def get_form(model, converter,
 
             column, path = get_field_with_path(model, name, return_remote_proxy_attr=False)
 
-            if path and not (is_relationship(column) or is_association_proxy(column)):
+            if (
+                path
+                and not is_relationship(column)
+                and not is_association_proxy(column)
+            ):
                 raise Exception("form column is located in another table and "
                                 "requires inline_models: {0}".format(name))
 
@@ -539,7 +537,7 @@ def get_form(model, converter,
             if column is not None and hasattr(column, 'property'):
                 return relation_name, column.property
 
-            raise ValueError('Invalid model property name %s.%s' % (model, name))
+            raise ValueError(f'Invalid model property name {model}.{name}')
 
         # Filter properties while maintaining property order in 'only' list
         properties = (find(x) for x in only)
@@ -602,20 +600,18 @@ class InlineModelConverter(InlineModelConverterBase):
         if info is None:
             if hasattr(p, '_sa_class_manager'):
                 return self.form_admin_class(p)
-            else:
-                model = getattr(p, 'model', None)
+            model = getattr(p, 'model', None)
 
-                if model is None:
-                    raise Exception('Unknown inline model admin: %s' % repr(p))
+            if model is None:
+                raise Exception(f'Unknown inline model admin: {repr(p)}')
 
-                attrs = dict()
-                for attr in dir(p):
-                    if not attr.startswith('_') and attr != 'model':
-                        attrs[attr] = getattr(p, attr)
+            attrs = {
+                attr: getattr(p, attr)
+                for attr in dir(p)
+                if not attr.startswith('_') and attr != 'model'
+            }
 
-                return self.form_admin_class(model, **attrs)
-
-            info = self.form_admin_class(model, **attrs)
+            return self.form_admin_class(model, **attrs)
 
         # Resolve AJAX FKs
         info._form_ajax_refs = self.process_ajax_refs(info)
@@ -623,13 +619,11 @@ class InlineModelConverter(InlineModelConverterBase):
         return info
 
     def process_ajax_refs(self, info):
-        refs = getattr(info, 'form_ajax_refs', None)
-
         result = {}
 
-        if refs:
+        if refs := getattr(info, 'form_ajax_refs', None):
             for name, opts in iteritems(refs):
-                new_name = '%s-%s' % (info.model.__name__.lower(), name)
+                new_name = f'{info.model.__name__.lower()}-{name}'
 
                 loader = None
                 if isinstance(opts, dict):
@@ -664,28 +658,30 @@ class InlineModelConverter(InlineModelConverterBase):
         reverse_prop = None
 
         for prop in target_mapper.iterate_properties:
-            if hasattr(prop, 'direction') and prop.direction.name in ('MANYTOONE', 'MANYTOMANY'):
-                if issubclass(model, prop.mapper.class_):
-                    reverse_prop = prop
-                    break
+            if (
+                hasattr(prop, 'direction')
+                and prop.direction.name in ('MANYTOONE', 'MANYTOMANY')
+                and issubclass(model, prop.mapper.class_)
+            ):
+                reverse_prop = prop
+                break
         else:
-            raise Exception('Cannot find reverse relation for model %s' % info.model)
+            raise Exception(f'Cannot find reverse relation for model {info.model}')
 
         # Find forward property
         forward_prop = None
 
-        if prop.direction.name == 'MANYTOONE':
-            candidate = 'ONETOMANY'
-        else:
-            candidate = 'MANYTOMANY'
-
+        candidate = 'ONETOMANY' if prop.direction.name == 'MANYTOONE' else 'MANYTOMANY'
         for prop in mapper.iterate_properties:
-            if hasattr(prop, 'direction') and prop.direction.name == candidate:
-                if prop.mapper.class_ == target_mapper.class_:
-                    forward_prop = prop
-                    break
+            if (
+                hasattr(prop, 'direction')
+                and prop.direction.name == candidate
+                and prop.mapper.class_ == target_mapper.class_
+            ):
+                forward_prop = prop
+                break
         else:
-            raise Exception('Cannot find forward relation for model %s' % info.model)
+            raise Exception(f'Cannot find forward relation for model {info.model}')
 
         return forward_prop.key, reverse_prop.key
 
@@ -745,10 +741,9 @@ class InlineModelConverter(InlineModelConverterBase):
         # Post-process form
         child_form = info.postprocess_form(child_form)
 
-        kwargs = dict()
+        kwargs = {}
 
-        label = self.get_label(info, forward_prop_key)
-        if label:
+        if label := self.get_label(info, forward_prop_key):
             kwargs['label'] = label
 
         if self.view.form_args:
@@ -776,7 +771,7 @@ class InlineOneToOneModelConverter(InlineModelConverter):
         mapper = info.model._sa_class_manager.mapper.base_mapper
         target_mapper = model._sa_class_manager.mapper
 
-        inline_relationship = dict()
+        inline_relationship = {}
 
         for forward_prop in mapper.iterate_properties:
             if not hasattr(forward_prop, 'direction'):
@@ -788,15 +783,9 @@ class InlineOneToOneModelConverter(InlineModelConverter):
             if forward_prop.mapper.class_ != target_mapper.class_:
                 continue
 
-            # in case when model has few relationships to target model or
-            # has just installed references manually. This is more quick
-            # solution rather than rotate yet another one loop
-            ref = getattr(forward_prop, 'backref')
-
-            if not ref:
-                ref = getattr(forward_prop, 'back_populates')
-
-            if ref:
+            if ref := getattr(forward_prop, 'backref') or getattr(
+                forward_prop, 'back_populates'
+            ):
                 inline_relationship[ref] = forward_prop.key
                 continue
 
@@ -813,13 +802,11 @@ class InlineOneToOneModelConverter(InlineModelConverter):
                     inline_relationship[backward_prop.key] = forward_prop.key
                     break
             else:
-                raise Exception(
-                    'Cannot find reverse relation for model %s' % info.model)
+                raise Exception(f'Cannot find reverse relation for model {info.model}')
             break
 
         if not inline_relationship:
-            raise Exception(
-                'Cannot find forward relation for model %s' % info.model)
+            raise Exception(f'Cannot find forward relation for model {info.model}')
 
         return inline_relationship
 
@@ -829,7 +816,7 @@ class InlineOneToOneModelConverter(InlineModelConverter):
         inline_relationships = self._calculate_mapping_key_pair(model, info)
 
         # Remove reverse property from the list
-        ignore = [value for value in inline_relationships.values()]
+        ignore = list(inline_relationships.values())
 
         if info.form_excluded_columns:
             exclude = ignore + list(info.form_excluded_columns)
@@ -855,7 +842,7 @@ class InlineOneToOneModelConverter(InlineModelConverter):
         # Post-process form
         child_form = info.postprocess_form(child_form)
 
-        kwargs = dict()
+        kwargs = {}
 
         # Contribute field
         for key in inline_relationships.keys():

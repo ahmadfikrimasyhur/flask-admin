@@ -332,9 +332,9 @@ class ModelView(BaseModelView):
 
         self._search_fields = None
 
-        self._filter_joins = dict()
+        self._filter_joins = {}
 
-        self._sortable_joins = dict()
+        self._sortable_joins = {}
 
         if self.form_choices is None:
             self.form_choices = {}
@@ -350,13 +350,12 @@ class ModelView(BaseModelView):
         self._primary_key = self.scaffold_pk()
 
         if self._primary_key is None:
-            raise Exception('Model %s does not have primary key.' % self.model.__name__)
+            raise Exception(f'Model {self.model.__name__} does not have primary key.')
 
         # Configuration
-        if not self.column_select_related_list:
-            self._auto_joins = self.scaffold_auto_joins()
-        else:
-            self._auto_joins = self.column_select_related_list
+        self._auto_joins = (
+            self.column_select_related_list or self.scaffold_auto_joins()
+        )
 
     # Internal API
     def _get_model_iterator(self, model=None):
@@ -441,7 +440,10 @@ class ModelView(BaseModelView):
                     if len(filtered) == 0:
                         continue
                     elif len(filtered) > 1:
-                        warnings.warn('Can not convert multiple-column properties (%s.%s)' % (self.model, p.key))
+                        warnings.warn(
+                            f'Can not convert multiple-column properties ({self.model}.{p.key})'
+                        )
+
                         continue
 
                     column = filtered[0]
@@ -463,7 +465,7 @@ class ModelView(BaseModelView):
             Return a dictionary of sortable columns.
             Key is column name, value is sort column/field.
         """
-        columns = dict()
+        columns = {}
 
         for p in self._get_model_iterator():
             if hasattr(p, 'columns'):
@@ -493,45 +495,43 @@ class ModelView(BaseModelView):
             If `column_sortable_list` is set, will use it. Otherwise, will call
             `scaffold_sortable_columns` to get them from the model.
         """
-        self._sortable_joins = dict()
+        self._sortable_joins = {}
 
         if self.column_sortable_list is None:
             return self.scaffold_sortable_columns()
-        else:
-            result = dict()
+        result = {}
 
-            for c in self.column_sortable_list:
-                if isinstance(c, tuple):
-                    if isinstance(c[1], tuple):
-                        column, path = [], []
-                        for item in c[1]:
-                            column_item, path_item = tools.get_field_with_path(self.model, item)
-                            column.append(column_item)
-                            path.append(path_item)
-                        column_name = c[0]
-                    else:
-                        column, path = tools.get_field_with_path(self.model, c[1])
-                        column_name = c[0]
+        for c in self.column_sortable_list:
+            if isinstance(c, tuple):
+                if isinstance(c[1], tuple):
+                    column, path = [], []
+                    for item in c[1]:
+                        column_item, path_item = tools.get_field_with_path(self.model, item)
+                        column.append(column_item)
+                        path.append(path_item)
                 else:
-                    column, path = tools.get_field_with_path(self.model, c)
-                    column_name = text_type(c)
+                    column, path = tools.get_field_with_path(self.model, c[1])
+                column_name = c[0]
+            else:
+                column, path = tools.get_field_with_path(self.model, c)
+                column_name = text_type(c)
 
-                if path and (hasattr(path[0], 'property') or isinstance(path[0], list)):
-                    self._sortable_joins[column_name] = path
-                elif path:
-                    raise Exception("For sorting columns in a related table, "
-                                    "column_sortable_list requires a string "
-                                    "like '<relation name>.<column name>'. "
-                                    "Failed on: {0}".format(c))
-                else:
-                    # column is in same table, use only model attribute name
-                    if getattr(column, 'key', None) is not None:
-                        column_name = column.key
+            if path and (hasattr(path[0], 'property') or isinstance(path[0], list)):
+                self._sortable_joins[column_name] = path
+            elif path:
+                raise Exception("For sorting columns in a related table, "
+                                "column_sortable_list requires a string "
+                                "like '<relation name>.<column name>'. "
+                                "Failed on: {0}".format(c))
+            else:
+                # column is in same table, use only model attribute name
+                if getattr(column, 'key', None) is not None:
+                    column_name = column.key
 
-                # column_name must match column_name used in `get_list_columns`
-                result[column_name] = column
+            # column_name must match column_name used in `get_list_columns`
+            result[column_name] = column
 
-            return result
+        return result
 
     def get_column_names(self, only_columns, excluded_columns):
         """
@@ -554,15 +554,10 @@ class ModelView(BaseModelView):
             try:
                 column, path = tools.get_field_with_path(self.model, c)
 
-                if path:
-                    # column is a relation (InstrumentedAttribute), use full path
-                    column_name = text_type(c)
+                if not path and getattr(column, 'key', None) is not None:
+                    column_name = column.key
                 else:
-                    # column is in same table, use only model attribute name
-                    if getattr(column, 'key', None) is not None:
-                        column_name = column.key
-                    else:
-                        column_name = text_type(c)
+                    column_name = text_type(c)
             except AttributeError:
                 # TODO: See ticket #1299 - allow virtual columns. Probably figure out
                 # better way to handle it. For now just assume if column was not found - it
@@ -591,7 +586,7 @@ class ModelView(BaseModelView):
                 attr, joins = tools.get_field_with_path(self.model, name)
 
                 if not attr:
-                    raise Exception('Failed to find field for search field: %s' % name)
+                    raise Exception(f'Failed to find field for search field: {name}')
 
                 if tools.is_hybrid_property(self.model, name):
                     column = attr
@@ -599,8 +594,10 @@ class ModelView(BaseModelView):
                         column.key = name.split('.')[-1]
                     self._search_fields.append((column, joins))
                 else:
-                    for column in tools.get_columns_for_field(attr):
-                        self._search_fields.append((column, joins))
+                    self._search_fields.extend(
+                        (column, joins)
+                        for column in tools.get_columns_for_field(attr)
+                    )
 
         return bool(self.column_searchable_list)
 
@@ -639,7 +636,7 @@ class ModelView(BaseModelView):
         attr, joins = tools.get_field_with_path(self.model, name)
 
         if attr is None:
-            raise Exception('Failed to find field for filter: %s' % name)
+            raise Exception(f'Failed to find field for filter: {name}')
 
         # Figure out filters for related column
         if is_relationship(attr):
@@ -653,15 +650,13 @@ class ModelView(BaseModelView):
                     if column.foreign_keys or column.primary_key:
                         continue
 
-                    visible_name = '%s / %s' % (self.get_column_name(attr.prop.target.name),
-                                                self.get_column_name(p.key))
+                    visible_name = f'{self.get_column_name(attr.prop.target.name)} / {self.get_column_name(p.key)}'
+
 
                     type_name = type(column.type).__name__
-                    flt = self.filter_converter.convert(type_name,
-                                                        column,
-                                                        visible_name)
-
-                    if flt:
+                    if flt := self.filter_converter.convert(
+                        type_name, column, visible_name
+                    ):
                         table = column.table
 
                         if joins:
@@ -682,7 +677,7 @@ class ModelView(BaseModelView):
                 columns = tools.get_columns_for_field(attr)
 
                 if len(columns) > 1:
-                    raise Exception('Can not filter more than on one column for %s' % name)
+                    raise Exception(f'Can not filter more than on one column for {name}')
 
                 column = columns[0]
 
@@ -695,26 +690,19 @@ class ModelView(BaseModelView):
             # Join not needed for hybrid properties
             if (not is_hybrid_property and tools.need_join(self.model, column.table) and
                     name not in self.column_labels):
-                if joined_column_name:
-                    visible_name = '%s / %s / %s' % (
-                        joined_column_name,
-                        self.get_column_name(column.table.name),
-                        self.get_column_name(column.name)
-                    )
-                else:
-                    visible_name = '%s / %s' % (
-                        self.get_column_name(column.table.name),
-                        self.get_column_name(column.name)
-                    )
+                visible_name = (
+                    f'{joined_column_name} / {self.get_column_name(column.table.name)} / {self.get_column_name(column.name)}'
+                    if joined_column_name
+                    else f'{self.get_column_name(column.table.name)} / {self.get_column_name(column.name)}'
+                )
+
+            elif not isinstance(name, string_types):
+                visible_name = self.get_column_name(name.property.key)
+            elif self.column_labels and name in self.column_labels:
+                visible_name = self.column_labels[name]
             else:
-                if not isinstance(name, string_types):
-                    visible_name = self.get_column_name(name.property.key)
-                else:
-                    if self.column_labels and name in self.column_labels:
-                        visible_name = self.column_labels[name]
-                    else:
-                        visible_name = self.get_column_name(name)
-                        visible_name = visible_name.replace('.', ' / ')
+                visible_name = self.get_column_name(name)
+                visible_name = visible_name.replace('.', ' / ')
 
             type_name = type(column.type).__name__
 
@@ -837,13 +825,11 @@ class ModelView(BaseModelView):
                 if p.direction.name in ['MANYTOONE', 'MANYTOMANY']:
                     relations.add(p.key)
 
-        joined = []
-
-        for prop, name in self._list_columns:
-            if prop in relations:
-                joined.append(getattr(self.model, prop))
-
-        return joined
+        return [
+            getattr(self.model, prop)
+            for prop, name in self._list_columns
+            if prop in relations
+        ]
 
     # AJAX foreignkey support
     def _create_ajax_loader(self, name, options):
@@ -900,11 +886,7 @@ class ModelView(BaseModelView):
 
             column = sort_field if alias is None else getattr(alias, sort_field.key)
 
-            if sort_desc:
-                query = query.order_by(desc(column))
-            else:
-                query = query.order_by(column)
-
+            query = query.order_by(desc(column)) if sort_desc else query.order_by(column)
         return query, joins
 
     def _get_default_order(self):
@@ -914,21 +896,20 @@ class ModelView(BaseModelView):
             yield attr, joins, direction
 
     def _apply_sorting(self, query, joins, sort_column, sort_desc):
-        if sort_column is not None:
-            if sort_column in self._sortable_columns:
-                sort_field = self._sortable_columns[sort_column]
-                sort_joins = self._sortable_joins.get(sort_column)
-
-                if isinstance(sort_field, list):
-                    for field_item, join_item in zip(sort_field, sort_joins):
-                        query, joins = self._order_by(query, joins, join_item, field_item, sort_desc)
-                else:
-                    query, joins = self._order_by(query, joins, sort_joins, sort_field, sort_desc)
-        else:
+        if sort_column is None:
             order = self._get_default_order()
             for sort_field, sort_joins, sort_desc in order:
                 query, joins = self._order_by(query, joins, sort_joins, sort_field, sort_desc)
 
+        elif sort_column in self._sortable_columns:
+            sort_field = self._sortable_columns[sort_column]
+            sort_joins = self._sortable_joins.get(sort_column)
+
+            if isinstance(sort_field, list):
+                for field_item, join_item in zip(sort_field, sort_joins):
+                    query, joins = self._order_by(query, joins, join_item, field_item, sort_desc)
+            else:
+                query, joins = self._order_by(query, joins, sort_joins, sort_field, sort_desc)
         return query, joins
 
     def _apply_search(self, query, count_query, joins, count_joins, search):
@@ -1057,7 +1038,7 @@ class ModelView(BaseModelView):
         count_joins = {}
 
         query = self.get_query()
-        count_query = self.get_count_query() if not self.simple_list_pager else None
+        count_query = None if self.simple_list_pager else self.get_count_query()
 
         # Ignore eager-loaded relations (prevent unnecessary joins)
         # TODO: Separate join detection for query and count query?
@@ -1243,11 +1224,7 @@ class ModelView(BaseModelView):
             if self.fast_mass_delete:
                 count = query.delete(synchronize_session=False)
             else:
-                count = 0
-
-                for m in query.all():
-                    if self.delete_model(m):
-                        count += 1
+                count = sum(1 for m in query.all() if self.delete_model(m))
 
             self.session.commit()
 

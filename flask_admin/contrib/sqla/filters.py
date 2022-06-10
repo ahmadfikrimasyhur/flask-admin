@@ -87,7 +87,7 @@ class FilterSmaller(BaseSQLAFilter):
 class FilterEmpty(BaseSQLAFilter, filters.BaseBooleanFilter):
     def apply(self, query, value, alias=None):
         if value == '1':
-            return query.filter(self.get_column(alias) == None)  # noqa: E711
+            return query.filter(self.get_column(alias) is None)
         else:
             return query.filter(self.get_column(alias) != None)  # noqa: E711
 
@@ -113,7 +113,7 @@ class FilterNotInList(FilterInList):
     def apply(self, query, value, alias=None):
         # NOT IN can exclude NULL values, so "or_ == None" needed to be added
         column = self.get_column(alias)
-        return query.filter(or_(~column.in_(value), column == None))  # noqa: E711
+        return query.filter(or_(~column.in_(value), column is None))
 
     def operation(self):
         return lazy_gettext('not in list')
@@ -384,7 +384,7 @@ class ChoiceTypeNotEqualFilter(FilterNotEqual):
                     break
         if choice_type:
             # != can exclude NULL values, so "or_ == None" needed to be added
-            return query.filter(or_(column != choice_type, column == None))  # noqa: E711
+            return query.filter(or_(column != choice_type, column is None))
         else:
             return query
 
@@ -399,17 +399,20 @@ class ChoiceTypeLikeFilter(FilterLike):
         if user_query:
             # loop through choice 'values' looking for matches
             if isinstance(column.type.choices, enum.EnumMeta):
-                for choice in column.type.choices:
-                    if user_query.lower() in choice.name.lower():
-                        choice_types.append(choice.value)
+                choice_types.extend(
+                    choice.value
+                    for choice in column.type.choices
+                    if user_query.lower() in choice.name.lower()
+                )
+
             else:
-                for type, value in column.type.choices:
-                    if user_query.lower() in value.lower():
-                        choice_types.append(type)
-        if choice_types:
-            return query.filter(column.in_(choice_types))
-        else:
-            return query
+                choice_types.extend(
+                    type
+                    for type, value in column.type.choices
+                    if user_query.lower() in value.lower()
+                )
+
+        return query.filter(column.in_(choice_types)) if choice_types else query
 
 
 class ChoiceTypeNotLikeFilter(FilterNotLike):
@@ -422,16 +425,22 @@ class ChoiceTypeNotLikeFilter(FilterNotLike):
         if user_query:
             # loop through choice 'values' looking for matches
             if isinstance(column.type.choices, enum.EnumMeta):
-                for choice in column.type.choices:
-                    if user_query.lower() in choice.name.lower():
-                        choice_types.append(choice.value)
+                choice_types.extend(
+                    choice.value
+                    for choice in column.type.choices
+                    if user_query.lower() in choice.name.lower()
+                )
+
             else:
-                for type, value in column.type.choices:
-                    if user_query.lower() in value.lower():
-                        choice_types.append(type)
+                choice_types.extend(
+                    type
+                    for type, value in column.type.choices
+                    if user_query.lower() in value.lower()
+                )
+
         if choice_types:
             # != can exclude NULL values, so "or_ == None" needed to be added
-            return query.filter(or_(column.notin_(choice_types), column == None))  # noqa: E711
+            return query.filter(or_(column.notin_(choice_types), column is None))
         else:
             return query
 

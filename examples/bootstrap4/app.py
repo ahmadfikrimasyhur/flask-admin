@@ -92,8 +92,8 @@ def build_sample_db():
 
     for i in range(len(first_names)):
         user = User()
-        user.name = first_names[i] + " " + last_names[i]
-        user.email = first_names[i].lower() + "@example.com"
+        user.name = f"{first_names[i]} {last_names[i]}"
+        user.email = f"{first_names[i].lower()}@example.com"
         db.session.add(user)
 
     sample_text = [

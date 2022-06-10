@@ -89,8 +89,7 @@ class ActionsMixin(object):
             if self.is_action_allowed(name):
                 actions.append((name, text_type(text)))
 
-                confirmation = self._actions_data[name][2]
-                if confirmation:
+                if confirmation := self._actions_data[name][2]:
                     actions_confirmation[name] = text_type(confirmation)
 
         return actions, actions_confirmation
@@ -122,7 +121,7 @@ class ActionsMixin(object):
             flash_errors(form, message='Failed to perform action. %(error)s')
 
         if return_view:
-            url = self.get_url('.' + return_view)
+            url = self.get_url(f'.{return_view}')
         else:
             url = get_redirect_target() or self.get_url('.index_view')
 

@@ -65,9 +65,7 @@ class S3Storage(object):
 
     def get_files(self, path, directory):
         def _strip_path(name, path):
-            if name.startswith(path):
-                return name.replace(path, '', 1)
-            return name
+            return name.replace(path, '', 1) if name.startswith(path) else name
 
         def _remove_trailing_slash(name):
             return name[:-1]
@@ -95,11 +93,11 @@ class S3Storage(object):
 
     def _get_bucket_list_prefix(self, path):
         parts = path.split(self.separator)
-        if len(parts) == 1:
-            search = ''
-        else:
-            search = self.separator.join(parts[:-1]) + self.separator
-        return search
+        return (
+            ''
+            if len(parts) == 1
+            else self.separator.join(parts[:-1]) + self.separator
+        )
 
     def _get_path_keys(self, path):
         search = self._get_bucket_list_prefix(path)

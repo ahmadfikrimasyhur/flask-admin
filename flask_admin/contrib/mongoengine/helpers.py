@@ -16,18 +16,17 @@ def make_gridfs_args(value):
 
 
 def make_thumb_args(value):
-    if getattr(value, 'thumbnail', None):
-        args = {
-            'id': value.thumbnail._id,
-            'coll': value.collection_name
-        }
-
-        if value.db_alias != 'default':
-            args['db'] = value.db_alias
-
-        return args
-    else:
+    if not getattr(value, 'thumbnail', None):
         return make_gridfs_args(value)
+    args = {
+        'id': value.thumbnail._id,
+        'coll': value.collection_name
+    }
+
+    if value.db_alias != 'default':
+        args['db'] = value.db_alias
+
+    return args
 
 
 def format_error(error):

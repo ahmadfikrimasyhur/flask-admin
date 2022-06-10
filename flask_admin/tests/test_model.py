@@ -62,11 +62,7 @@ class MockModelView(base.BaseModelView):
 
         self.search_arguments = []
 
-        if data is None:
-            self.all_models = {1: Model(1), 2: Model(2)}
-        else:
-            self.all_models = data
-
+        self.all_models = {1: Model(1), 2: Model(2)} if data is None else data
         self.last_id = len(self.all_models) + 1
 
     # Scaffolding
@@ -355,8 +351,7 @@ def test_csrf():
 
     def get_csrf_token(data):
         data = data.split('name="csrf_token" type="hidden" value="')[1]
-        token = data.split('"')[0]
-        return token
+        return data.split('"')[0]
 
     app, admin = setup()
 

@@ -51,10 +51,12 @@ def is_required_form_field(field):
             WTForms field to check
     """
     from flask_admin.form.validators import FieldListInputRequired
-    for validator in field.validators:
-        if isinstance(validator, (DataRequired, InputRequired, FieldListInputRequired)):
-            return True
-    return False
+    return any(
+        isinstance(
+            validator, (DataRequired, InputRequired, FieldListInputRequired)
+        )
+        for validator in field.validators
+    )
 
 
 def is_form_submitted():
@@ -104,7 +106,7 @@ def is_field_error(errors):
 def flash_errors(form, message):
     from flask_admin.babel import gettext
     for field_name, errors in iteritems(form.errors):
-        errors = form[field_name].label.text + u": " + u", ".join(errors)
+        errors = f"{form[field_name].label.text}: " + u", ".join(errors)
         flash(gettext(message, error=str(errors)), 'error')
 
 

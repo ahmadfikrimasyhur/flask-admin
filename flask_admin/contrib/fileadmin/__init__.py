@@ -481,10 +481,7 @@ class BaseFileAdmin(BaseView, ActionsMixin):
             Override to implement custom behavior.
         """
         edit_form_class = self.get_edit_form()
-        if request.form:
-            return edit_form_class(request.form)
-        else:
-            return edit_form_class()
+        return edit_form_class(request.form) if request.form else edit_form_class()
 
     def delete_form(self):
         """
@@ -493,10 +490,7 @@ class BaseFileAdmin(BaseView, ActionsMixin):
             Override to implement custom behavior.
         """
         delete_form_class = self.get_delete_form()
-        if request.form:
-            return delete_form_class(request.form)
-        else:
-            return delete_form_class()
+        return delete_form_class(request.form) if request.form else delete_form_class()
 
     def action_form(self):
         """
@@ -505,10 +499,7 @@ class BaseFileAdmin(BaseView, ActionsMixin):
             Override to implement custom behavior.
         """
         action_form_class = self.get_action_form()
-        if request.form:
-            return action_form_class(request.form)
-        else:
-            return action_form_class()
+        return action_form_class(request.form) if request.form else action_form_class()
 
     def is_file_allowed(self, filename):
         """
@@ -590,15 +581,13 @@ class BaseFileAdmin(BaseView, ActionsMixin):
             :param kwargs:
                 Additional arguments
         """
-        if not path:
-            return self.get_url(endpoint, **kwargs)
-        else:
+        if path:
             if self._on_windows:
                 path = path.replace('\\', '/')
 
             kwargs['path'] = path
 
-            return self.get_url(endpoint, **kwargs)
+        return self.get_url(endpoint, **kwargs)
 
     def _get_file_url(self, path, **kwargs):
         """
@@ -610,11 +599,7 @@ class BaseFileAdmin(BaseView, ActionsMixin):
         if self._on_windows:
             path = path.replace('\\', '/')
 
-        if self.is_file_editable(path):
-            route = '.edit'
-        else:
-            route = '.download'
-
+        route = '.edit' if self.is_file_editable(path) else '.download'
         return self.get_url(route, path=path, **kwargs)
 
     def _normalize_path(self, path):
@@ -631,11 +616,7 @@ class BaseFileAdmin(BaseView, ActionsMixin):
             path = ''
         else:
             path = op.normpath(path)
-            if base_path:
-                directory = self._separator.join([base_path, path])
-            else:
-                directory = path
-
+            directory = self._separator.join([base_path, path]) if base_path else path
             directory = op.normpath(directory)
 
             if not self.is_in_folder(base_path, directory):
@@ -871,14 +852,10 @@ class BaseFileAdmin(BaseView, ActionsMixin):
             action_form = None
 
         def sort_url(column, path, invert=False):
-            desc = None
-
             if not path:
                 path = None
 
-            if invert and not sort_desc:
-                desc = 1
-
+            desc = 1 if invert and not sort_desc else None
             return self.get_url('.index_view', path=path, sort=column, desc=desc)
 
         return self.render(self.list_template,
@@ -948,9 +925,7 @@ class BaseFileAdmin(BaseView, ActionsMixin):
 
         base_path, directory, path = self._normalize_path(path)
 
-        # backward compatibility with base_url
-        base_url = self.get_base_url()
-        if base_url:
+        if base_url := self.get_base_url():
             base_url = urljoin(self.get_url('.index_view'), base_url)
             return redirect(urljoin(quote(base_url), quote(path)))
 
@@ -1063,13 +1038,12 @@ class BaseFileAdmin(BaseView, ActionsMixin):
         form = self.name_form()
 
         path = form.path.data
-        if path:
-            base_path, full_path, path = self._normalize_path(path)
-
-            return_url = self._get_dir_url('.index_view', op.dirname(path))
-        else:
+        if not path:
             return redirect(self.get_url('.index_view'))
 
+        base_path, full_path, path = self._normalize_path(path)
+
+        return_url = self._get_dir_url('.index_view', op.dirname(path))
         if not self.can_rename:
             flash(gettext('Renaming is disabled.'), 'error')
             return redirect(return_url)
@@ -1113,15 +1087,11 @@ class BaseFileAdmin(BaseView, ActionsMixin):
         """
             Edit view method
         """
-        next_url = None
-
         path = request.args.getlist('path')
         if not path:
             return redirect(self.get_url('.index_view'))
 
-        if len(path) > 1:
-            next_url = self.get_url('.edit', path=path[1:])
-
+        next_url = self.get_url('.edit', path=path[1:]) if len(path) > 1 else None
         path = path[0]
 
         base_path, full_path, path = self._normalize_path(path)
@@ -1156,17 +1126,11 @@ class BaseFileAdmin(BaseView, ActionsMixin):
             except IOError:
                 flash(gettext("Error reading %(name)s.", name=path), 'error')
                 error = True
-            except:
-                flash(gettext("Unexpected error while reading from %(name)s", name=path), 'error')
-                error = True
             else:
                 try:
                     content = content.decode('utf8')
                 except UnicodeDecodeError:
                     flash(gettext("Cannot edit %(name)s.", name=path), 'error')
-                    error = True
-                except:
-                    flash(gettext("Unexpected error while reading from %(name)s", name=path), 'error')
                     error = True
                 else:
                     form.content.data = content

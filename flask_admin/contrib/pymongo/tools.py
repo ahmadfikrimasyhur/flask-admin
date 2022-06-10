@@ -9,8 +9,8 @@ def parse_like_term(term):
             Search term
     """
     if term.startswith('^'):
-        return '^{}'.format(re.escape(term[1:]))
+        return f'^{re.escape(term[1:])}'
     elif term.startswith('='):
-        return '^{}$'.format(re.escape(term[1:]))
+        return f'^{re.escape(term[1:])}$'
 
     return re.escape(term)

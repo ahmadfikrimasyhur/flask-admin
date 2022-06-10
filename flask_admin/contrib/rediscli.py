@@ -103,9 +103,7 @@ class RedisCli(BaseView):
             :param args:
                 Command arguments
         """
-        # Do some remapping
-        new_cmd = self.remapped_commands.get(name)
-        if new_cmd:
+        if new_cmd := self.remapped_commands.get(name):
             name = new_cmd
 
         # Execute command
@@ -150,8 +148,11 @@ class RedisCli(BaseView):
             Help command implementation.
         """
         if not args:
-            help = 'Usage: help <command>.\nList of supported commands: '
-            help += ', '.join(n for n in sorted(self.commands))
+            help = (
+                'Usage: help <command>.\nList of supported commands: '
+                + ', '.join(sorted(self.commands))
+            )
+
             return TextWrapper(help)
 
         cmd = args[0]
@@ -188,7 +189,7 @@ class RedisCli(BaseView):
 
             return self._execute_command(parts[0], parts[1:])
         except CommandError as err:
-            return self._error('Cli: %s' % err)
+            return self._error(f'Cli: {err}')
         except Exception as ex:
             log.exception(ex)
-            return self._error('Cli: %s' % ex)
+            return self._error(f'Cli: {ex}')

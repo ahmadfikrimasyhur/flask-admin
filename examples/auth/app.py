@@ -138,8 +138,12 @@ def build_sample_db():
         ]
 
         for i in range(len(first_names)):
-            tmp_email = first_names[i].lower() + "." + last_names[i].lower() + "@example.com"
-            tmp_pass = ''.join(random.choice(string.ascii_lowercase + string.digits) for i in range(10))
+            tmp_email = f"{first_names[i].lower()}.{last_names[i].lower()}@example.com"
+            tmp_pass = ''.join(
+                random.choice(string.ascii_lowercase + string.digits)
+                for _ in range(10)
+            )
+
             user_datastore.create_user(
                 first_name=first_names[i],
                 last_name=last_names[i],

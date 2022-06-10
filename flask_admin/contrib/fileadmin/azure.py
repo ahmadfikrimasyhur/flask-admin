@@ -112,10 +112,10 @@ class AzureStorage(object):
                 folders.add(folder_name)
 
         folders.discard(directory)
+        is_dir = True
         for folder in folders:
             name = folder.split(self.separator)[-1]
             rel_path = folder
-            is_dir = True
             size = 0
             last_modified = 0
             files.append((name, rel_path, is_dir, size, last_modified))
@@ -125,14 +125,12 @@ class AzureStorage(object):
     def is_dir(self, path):
         path = self._ensure_blob_path(path)
 
-        num_blobs = 0
-        for blob in self._client.list_blobs(self._container_name, path):
+        for num_blobs, blob in enumerate(self._client.list_blobs(self._container_name, path), start=1):
             blob_path_parts = blob.name.split(self.separator)
             is_explicit_directory = blob_path_parts[-1] == self._fakedir
             if is_explicit_directory:
                 return True
 
-            num_blobs += 1
             path_cannot_be_leaf = num_blobs >= 2
             if path_cannot_be_leaf:
                 return True
@@ -178,7 +176,7 @@ class AzureStorage(object):
             BlobPermissions.READ,
             expiry=now + self._send_file_validity,
             start=now - self._send_file_lookback)
-        return redirect('%s?%s' % (url, sas))
+        return redirect(f'{url}?{sas}')
 
     def read_file(self, path):
         path = self._ensure_blob_path(path)

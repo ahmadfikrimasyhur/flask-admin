@@ -254,7 +254,7 @@ def test_model():
     assert u'test1large' in rv.data.decode('utf-8')
 
     # check that we can retrieve an edit view
-    url = '/admin/model1/edit/?id=%s' % model.id
+    url = f'/admin/model1/edit/?id={model.id}'
     rv = client.get(url)
     assert rv.status_code == 200
 
@@ -299,7 +299,7 @@ def test_model():
     assert model.sqla_utils_color is None
 
     # check that the model can be deleted
-    url = '/admin/model1/delete/?id=%s' % model.id
+    url = f'/admin/model1/delete/?id={model.id}'
     rv = client.post(url)
     assert rv.status_code == 302
     assert db.session.query(Model1).count() == 0
@@ -1583,8 +1583,8 @@ def test_hybrid_property():
             return str(self.number_of_pixels())
 
         @number_of_pixels_str.expression
-        def number_of_pixels_str(cls):
-            return cast(cls.width * cls.height, db.String)
+        def number_of_pixels_str(self):
+            return cast(self.width * self.height, db.String)
 
     db.create_all()
 
@@ -1643,7 +1643,7 @@ def test_hybrid_property_nested():
 
         @hybrid_property
         def fullname(self):
-            return '{} {}'.format(self.firstname, self.lastname)
+            return f'{self.firstname} {self.lastname}'
 
     class Model2(db.Model):
         id = db.Column(db.Integer, primary_key=True)
@@ -2605,7 +2605,7 @@ def test_export_csv():
     app, db, admin = setup()
     Model1, Model2 = create_models(db)
 
-    for x in range(5):
+    for _ in range(5):
         fill_db(db, Model1, Model2)
 
     view = CustomModelView(Model1, db.session, can_export=True,

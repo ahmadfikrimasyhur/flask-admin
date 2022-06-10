@@ -59,7 +59,7 @@ class MongoFileField(fields.FileField):
 
     def process(self, formdata, data=unset_value):
         if formdata:
-            marker = '_%s-delete' % self.name
+            marker = f'_{self.name}-delete'
             if marker in formdata:
                 self._should_delete = True
 
@@ -74,11 +74,7 @@ class MongoFileField(fields.FileField):
                 return
 
             if isinstance(self.data, FileStorage) and not is_empty(self.data.stream):
-                if not field.grid_id:
-                    func = field.put
-                else:
-                    func = field.replace
-
+                func = field.replace if field.grid_id else field.put
                 func(self.data.stream,
                      filename=self.data.filename,
                      content_type=self.data.content_type)

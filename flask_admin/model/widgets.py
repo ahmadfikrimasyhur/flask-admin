@@ -52,12 +52,9 @@ class AjaxSelect2Widget(object):
             kwargs['value'] = separator.join(ids)
             kwargs['data-json'] = json.dumps(result)
             kwargs['data-multiple'] = u'1'
-        else:
-            data = field.loader.format(field.data)
-
-            if data:
-                kwargs['value'] = data[0]
-                kwargs['data-json'] = json.dumps(data)
+        elif data := field.loader.format(field.data):
+            kwargs['value'] = data[0]
+            kwargs['data-json'] = json.dumps(data)
 
         placeholder = field.loader.options.get('placeholder', gettext('Please select model'))
         kwargs.setdefault('data-placeholder', placeholder)
@@ -65,7 +62,7 @@ class AjaxSelect2Widget(object):
         minimum_input_length = int(field.loader.options.get('minimum_input_length', 1))
         kwargs.setdefault('data-minimum-input-length', minimum_input_length)
 
-        return Markup('<input %s>' % html_params(name=field.name, **kwargs))
+        return Markup(f'<input {html_params(name=field.name, **kwargs)}>')
 
 
 class XEditableWidget(object):
@@ -94,10 +91,7 @@ class XEditableWidget(object):
 
         kwargs = self.get_kwargs(field, kwargs)
 
-        return Markup(
-            '<a %s>%s</a>' % (html_params(**kwargs),
-                              escape(display_value))
-        )
+        return Markup(f'<a {html_params(**kwargs)}>{escape(display_value)}</a>')
 
     def get_kwargs(self, field, kwargs):
         """
@@ -177,6 +171,6 @@ class XEditableWidget(object):
             else:
                 kwargs['data-value'] = text_type(selected_ids[0])
         else:
-            raise Exception('Unsupported field type: %s' % (type(field),))
+            raise Exception(f'Unsupported field type: {type(field)}')
 
         return kwargs

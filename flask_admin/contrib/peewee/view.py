@@ -185,9 +185,11 @@ class ModelView(BaseModelView):
 
     def get_pk_value(self, model):
         if self.model._meta.composite_key:
-            return tuple([
+            return tuple(
                 model._data[field_name]
-                for field_name in self.model._meta.primary_key.field_names])
+                for field_name in self.model._meta.primary_key.field_names
+            )
+
         return getattr(model, self._primary_key)
 
     def scaffold_list_columns(self):
@@ -197,21 +199,20 @@ class ModelView(BaseModelView):
             # Verify type
             field_class = type(f)
 
-            if field_class == ForeignKeyField:
+            if (
+                field_class == ForeignKeyField
+                or self.column_display_pk
+                or field_class != PrimaryKeyField
+            ):
                 columns.append(n)
-            elif self.column_display_pk or field_class != PrimaryKeyField:
-                columns.append(n)
-
         return columns
 
     def scaffold_sortable_columns(self):
-        columns = dict()
-
-        for n, f in self._get_model_fields():
-            if self.column_display_pk or type(f) != PrimaryKeyField:
-                columns[n] = f
-
-        return columns
+        return {
+            n: f
+            for n, f in self._get_model_fields()
+            if self.column_display_pk or type(f) != PrimaryKeyField
+        }
 
     def init_search(self):
         if self.column_searchable_list:
@@ -235,7 +236,7 @@ class ModelView(BaseModelView):
             attr = name
 
         if attr is None:
-            raise Exception('Failed to find field for filter: %s' % name)
+            raise Exception(f'Failed to find field for filter: {name}')
 
         # Check if field is in different model
         model_class = None
@@ -245,20 +246,17 @@ class ModelView(BaseModelView):
             model_class = attr.model
 
         if model_class != self.model:
-            visible_name = '%s / %s' % (self.get_column_name(model_class.__name__),
-                                        self.get_column_name(attr.name))
+            visible_name = f'{self.get_column_name(model_class.__name__)} / {self.get_column_name(attr.name)}'
+
         else:
-            if not isinstance(name, string_types):
-                visible_name = self.get_column_name(attr.name)
-            else:
-                visible_name = self.get_column_name(name)
+            visible_name = (
+                self.get_column_name(name)
+                if isinstance(name, string_types)
+                else self.get_column_name(attr.name)
+            )
 
         type_name = type(attr).__name__
-        flt = self.filter_converter.convert(type_name,
-                                            attr,
-                                            visible_name)
-
-        return flt
+        return self.filter_converter.convert(type_name, attr, visible_name)
 
     def is_valid_filter(self, filter):
         return isinstance(filter, filters.BasePeeweeFilter)
@@ -416,17 +414,15 @@ class ModelView(BaseModelView):
                 query = f.apply(query, f.clean(value))
 
         # Get count
-        count = query.count() if not self.simple_list_pager else None
+        count = None if self.simple_list_pager else query.count()
 
         # Apply sorting
         if sort_column is not None:
             sort_field = self._sortable_columns[sort_column]
             order = [(sort_field, sort_desc)]
             query, joins = self._order_by(query, joins, order)
-        else:
-            order = self._get_default_order()
-            if order:
-                query, joins = self._order_by(query, joins, order)
+        elif order := self._get_default_order():
+            query, joins = self._order_by(query, joins, order)
 
         # Pagination
         if page_size is None:

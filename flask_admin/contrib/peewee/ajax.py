@@ -18,7 +18,10 @@ class QueryAjaxModelLoader(AjaxModelLoader):
         self.fields = options.get('fields')
 
         if not self.fields:
-            raise ValueError('AJAX loading requires `fields` to be specified for %s.%s' % (model, self.name))
+            raise ValueError(
+                f'AJAX loading requires `fields` to be specified for {model}.{self.name}'
+            )
+
 
         self._cached_fields = self._process_fields()
 
@@ -32,7 +35,7 @@ class QueryAjaxModelLoader(AjaxModelLoader):
                 attr = getattr(self.model, field, None)
 
                 if not attr:
-                    raise ValueError('%s.%s does not exist.' % (self.model, field))
+                    raise ValueError(f'{self.model}.{field} does not exist.')
 
                 remote_fields.append(attr)
             else:
@@ -41,10 +44,7 @@ class QueryAjaxModelLoader(AjaxModelLoader):
         return remote_fields
 
     def format(self, model):
-        if not model:
-            return None
-
-        return (getattr(model, self.pk), as_unicode(model))
+        return (getattr(model, self.pk), as_unicode(model)) if model else None
 
     def get_one(self, pk):
         return self.model.get(**{self.pk: pk})
@@ -74,7 +74,7 @@ def create_ajax_loader(model, name, field_name, options):
     prop = getattr(model, field_name, None)
 
     if prop is None:
-        raise ValueError('Model %s does not have field %s.' % (model, field_name))
+        raise ValueError(f'Model {model} does not have field {field_name}.')
 
     # TODO: Check for field
     remote_model = prop.rel_model

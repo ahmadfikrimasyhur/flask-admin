@@ -77,7 +77,7 @@ class TweetView(ModelView):
         users = db.user.find(query, fields=('name',))
 
         # Contribute user names to the models
-        users_map = dict((x['_id'], x['name']) for x in users)
+        users_map = {x['_id']: x['name'] for x in users}
 
         for item in data:
             item['user_name'] = users_map.get(item['user_id'])

@@ -176,7 +176,7 @@ class QuerySelectMultipleField(QuerySelectField):
         if self._invalid_formdata:
             raise ValidationError(self.gettext(u'Not a valid choice'))
         elif self.data:
-            obj_list = list(x[1] for x in self._get_object_list())
+            obj_list = [x[1] for x in self._get_object_list()]
             for v in self.data:
                 if v not in obj_list:
                     raise ValidationError(self.gettext(u'Not a valid choice'))
@@ -233,7 +233,7 @@ class InlineHstoreList(InlineFieldList):
 
     def populate_obj(self, obj, name):
         """ Combines each FormField key/value into a dictionary for storage """
-        _fake = type(str('_fake'), (object, ), {})
+        _fake = type('_fake', (object, ), {})
 
         output = {}
         for form_field in self.entries:
@@ -297,7 +297,7 @@ class InlineModelFormList(InlineFieldList):
             return
 
         # Create primary key map
-        pk_map = dict((get_obj_pk(v, self._pk), v) for v in values)
+        pk_map = {get_obj_pk(v, self._pk): v for v in values}
 
         # Handle request data
         for field in self.entries:

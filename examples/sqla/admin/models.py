@@ -54,18 +54,21 @@ class User(db.Model):
     def phone_number(self):
         if self.dialling_code and self.local_phone_number:
             number = str(self.local_phone_number)
-            return "+{} ({}) {} {} {}".format(self.dialling_code, number[0], number[1:3], number[3:6], number[6::])
+            return f"+{self.dialling_code} ({number[0]}) {number[1:3]} {number[3:6]} {number[6::]}"
+
         return
 
     @phone_number.expression
-    def phone_number(cls):
-        return sql.operators.ColumnOperators.concat(cast(cls.dialling_code, db.String), cls.local_phone_number)
+    def phone_number(self):
+        return sql.operators.ColumnOperators.concat(
+            cast(self.dialling_code, db.String), self.local_phone_number
+        )
 
     def __str__(self):
-        return "{}, {}".format(self.last_name, self.first_name)
+        return f"{self.last_name}, {self.first_name}"
 
     def __repr__(self):
-        return "{}: {}".format(self.id, self.__str__())
+        return f"{self.id}: {self.__str__()}"
 
 
 # Create M2M table
@@ -90,7 +93,7 @@ class Post(db.Model):
     tags = db.relationship('Tag', secondary=post_tags_table)
 
     def __str__(self):
-        return "{}".format(self.title)
+        return f"{self.title}"
 
 
 class Tag(db.Model):
@@ -98,7 +101,7 @@ class Tag(db.Model):
     name = db.Column(db.Unicode(64), unique=True)
 
     def __str__(self):
-        return "{}".format(self.name)
+        return f"{self.name}"
 
 
 class Tree(db.Model):
@@ -110,4 +113,4 @@ class Tree(db.Model):
     parent = db.relationship('Tree', remote_side=[id], backref='children')
 
     def __str__(self):
-        return "{}".format(self.name)
+        return f"{self.name}"

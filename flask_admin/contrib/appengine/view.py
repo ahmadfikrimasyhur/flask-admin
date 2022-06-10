@@ -53,7 +53,7 @@ class NdbModelView(BaseModelView):
     """
 
     def scaffold_form(self):
-        form_class = wt_ndb.model_form(
+        return wt_ndb.model_form(
             self.model(),
             base_class=Form,
             only=self.form_columns,
@@ -61,7 +61,6 @@ class NdbModelView(BaseModelView):
             field_args=self.form_args,
             converter=self.model_form_converter(),
         )
-        return form_class
 
     def scaffold_list_form(self, widget=None, validators=None):
         form_class = wt_ndb.model_form(
@@ -71,8 +70,7 @@ class NdbModelView(BaseModelView):
             field_args=self.form_args,
             converter=self.model_form_converter(),
         )
-        result = create_editable_list_form(Form, form_class, widget)
-        return result
+        return create_editable_list_form(Form, form_class, widget)
 
     def get_list(self, page, sort_field, sort_desc, search, filters,
                  page_size=None):
@@ -179,7 +177,7 @@ class DbModelView(BaseModelView):
 
         if sort_field:
             if sort_desc:
-                sort_field = "-" + sort_field
+                sort_field = f"-{sort_field}"
             q.order(sort_field)
 
         results = q.fetch(self.page_size, offset=page * self.page_size)
@@ -232,4 +230,4 @@ def ModelView(model):
     elif issubclass(model, db.Model):
         return DbModelView(model)
     else:
-        raise ValueError("Unsupported model: %s" % model)
+        raise ValueError(f"Unsupported model: {model}")

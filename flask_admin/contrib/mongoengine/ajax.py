@@ -20,7 +20,9 @@ class QueryAjaxModelLoader(AjaxModelLoader):
         self._cached_fields = self._process_fields()
 
         if not self.fields:
-            raise ValueError('AJAX loading requires `fields` to be specified for %s.%s' % (model, self.name))
+            raise ValueError(
+                f'AJAX loading requires `fields` to be specified for {model}.{self.name}'
+            )
 
     def _process_fields(self):
         remote_fields = []
@@ -30,7 +32,7 @@ class QueryAjaxModelLoader(AjaxModelLoader):
                 attr = getattr(self.model, field, None)
 
                 if not attr:
-                    raise ValueError('%s.%s does not exist.' % (self.model, field))
+                    raise ValueError(f'{self.model}.{field} does not exist.')
 
                 remote_fields.append(attr)
             else:
@@ -39,10 +41,7 @@ class QueryAjaxModelLoader(AjaxModelLoader):
         return remote_fields
 
     def format(self, model):
-        if not model:
-            return None
-
-        return (as_unicode(model.pk), as_unicode(model))
+        return (as_unicode(model.pk), as_unicode(model)) if model else None
 
     def get_one(self, pk):
         return self.model.objects.filter(pk=pk).first()
@@ -54,7 +53,7 @@ class QueryAjaxModelLoader(AjaxModelLoader):
             criteria = None
 
             for field in self._cached_fields:
-                flt = {u'%s__icontains' % field.name: term}
+                flt = {f'{field.name}__icontains': term}
 
                 if not criteria:
                     criteria = mongoengine.Q(**flt)
@@ -73,16 +72,16 @@ def create_ajax_loader(model, name, field_name, opts):
     prop = getattr(model, field_name, None)
 
     if prop is None:
-        raise ValueError('Model %s does not have field %s.' % (model, field_name))
+        raise ValueError(f'Model {model} does not have field {field_name}.')
 
     ftype = type(prop).__name__
 
-    if ftype == 'ListField' or ftype == 'SortedListField':
+    if ftype in ['ListField', 'SortedListField']:
         prop = prop.field
         ftype = type(prop).__name__
 
     if ftype != 'ReferenceField':
-        raise ValueError('Dont know how to convert %s type for AJAX loader' % ftype)
+        raise ValueError(f'Dont know how to convert {ftype} type for AJAX loader')
 
     remote_model = prop.document_type
     return QueryAjaxModelLoader(name, remote_model, **opts)
@@ -90,18 +89,13 @@ def create_ajax_loader(model, name, field_name, opts):
 
 def process_ajax_references(references, view):
     def make_name(base, name):
-        if base:
-            return ('%s-%s' % (base, name)).lower()
-        else:
-            return as_unicode(name).lower()
+        return f'{base}-{name}'.lower() if base else as_unicode(name).lower()
 
     def handle_field(field, subdoc, base):
         ftype = type(field).__name__
 
-        if ftype == 'ListField' or ftype == 'SortedListField':
-            child_doc = getattr(subdoc, '_form_subdocuments', {}).get(None)
-
-            if child_doc:
+        if ftype in ['ListField', 'SortedListField']:
+            if child_doc := getattr(subdoc, '_form_subdocuments', {}).get(None):
                 handle_field(field.field, child_doc, base)
         elif ftype == 'EmbeddedDocumentField':
             result = {}
@@ -121,11 +115,10 @@ def process_ajax_references(references, view):
 
             subdoc._form_ajax_refs = result
 
-            child_doc = getattr(subdoc, '_form_subdocuments', None)
-            if child_doc:
+            if child_doc := getattr(subdoc, '_form_subdocuments', None):
                 handle_subdoc(field.document_type_obj, subdoc, base)
         else:
-            raise ValueError('Failed to process subdocument field %s' % (field,))
+            raise ValueError(f'Failed to process subdocument field {field}')
 
     def handle_subdoc(model, subdoc, base):
         documents = getattr(subdoc, '_form_subdocuments', {})
@@ -134,7 +127,7 @@ def process_ajax_references(references, view):
             field = getattr(model, name, None)
 
             if not field:
-                raise ValueError('Invalid subdocument field %s.%s' % (model, name))
+                raise ValueError(f'Invalid subdocument field {model}.{name}')
 
             handle_field(field, doc, make_name(base, name))
 

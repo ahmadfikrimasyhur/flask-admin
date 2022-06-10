@@ -42,10 +42,7 @@ def expose_plugview(url='/'):
     def wrap(v):
         handler = expose(url, v.methods)
 
-        if hasattr(v, 'as_view'):
-            return handler(v.as_view(v.__name__))
-        else:
-            return handler(v)
+        return handler(v.as_view(v.__name__)) if hasattr(v, 'as_view') else handler(v)
 
     return wrap
 
@@ -80,26 +77,26 @@ class AdminViewMeta(type):
         Does some precalculations (like getting list of view methods from the class) to avoid
         calculating them for each view class instance.
     """
-    def __init__(cls, classname, bases, fields):
-        type.__init__(cls, classname, bases, fields)
+    def __init__(self, classname, bases, fields):
+        type.__init__(self, classname, bases, fields)
 
         # Gather exposed views
-        cls._urls = []
-        cls._default_view = None
+        self._urls = []
+        self._default_view = None
 
-        for p in dir(cls):
-            attr = getattr(cls, p)
+        for p in dir(self):
+            attr = getattr(self, p)
 
             if hasattr(attr, '_urls'):
                 # Collect methods
                 for url, methods in attr._urls:
-                    cls._urls.append((url, p, methods))
+                    self._urls.append((url, p, methods))
 
                     if url == '/':
-                        cls._default_view = p
+                        self._default_view = p
 
                 # Wrap views
-                setattr(cls, p, _wrap_view(attr))
+                setattr(self, p, _wrap_view(attr))
 
 
 class BaseViewClass(object):
@@ -205,33 +202,28 @@ class BaseView(with_metaclass(AdminViewMeta, BaseViewClass)):
 
         # Default view
         if self._default_view is None:
-            raise Exception(u'Attempted to instantiate admin view %s without default view' % self.__class__.__name__)
+            raise Exception(
+                f'Attempted to instantiate admin view {self.__class__.__name__} without default view'
+            )
 
     def _get_endpoint(self, endpoint):
         """
             Generate Flask endpoint name. By default converts class name to lower case if endpoint is
             not explicitly provided.
         """
-        if endpoint:
-            return endpoint
-
-        return self.__class__.__name__.lower()
+        return endpoint or self.__class__.__name__.lower()
 
     def _get_view_url(self, admin, url):
         """
             Generate URL for the view. Override to change default behavior.
         """
         if url is None:
-            if admin.url != '/':
-                url = '%s/%s' % (admin.url, self.endpoint)
+            if admin.url == '/':
+                url = '/' if self == admin.index_view else f'/{self.endpoint}'
             else:
-                if self == admin.index_view:
-                    url = '/'
-                else:
-                    url = '/%s' % self.endpoint
-        else:
-            if not url.startswith('/'):
-                url = '%s/%s' % (admin.url, url)
+                url = f'{admin.url}/{self.endpoint}'
+        elif not url.startswith('/'):
+            url = f'{admin.url}/{url}'
 
         return url
 
@@ -391,10 +383,7 @@ class BaseView(with_metaclass(AdminViewMeta, BaseViewClass)):
 
     @property
     def _debug(self):
-        if not self.admin or not self.admin.app:
-            return False
-
-        return self.admin.app.debug
+        return False if not self.admin or not self.admin.app else self.admin.app.debug
 
 
 class AdminIndexView(BaseView):
@@ -502,7 +491,7 @@ class Admin(object):
 
         self._views = []
         self._menu = []
-        self._menu_categories = dict()
+        self._menu_categories = {}
         self._menu_links = []
 
         if name is None:
@@ -722,7 +711,7 @@ class Admin(object):
 
     def _init_extension(self):
         if not hasattr(self.app, 'extensions'):
-            self.app.extensions = dict()
+            self.app.extensions = {}
 
         admins = self.app.extensions.get('admin', [])
 
